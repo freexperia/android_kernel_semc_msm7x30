@@ -31,6 +31,9 @@
  *
  */
 
+#ifndef _LINUX_PMIC8058_H_
+#define _LINUX_PMIC8058_H_
+
 #include <linux/irq.h>
 #include <linux/mfd/core.h>
 
@@ -158,3 +161,4 @@ int pm8058_irq_get_rt_status(struct pm8058_chip *pm_chip, int irq);
 int pm8058_misc_control(struct pm8058_chip *pm_chip, int mask, int flag);
 
 int pm8058_reset_pwr_off(int reset);
+#endif

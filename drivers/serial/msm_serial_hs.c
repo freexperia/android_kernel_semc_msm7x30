@@ -157,6 +157,8 @@ struct msm_hs_port {
 
 	struct msm_hs_wakeup wakeup;
 	struct wake_lock dma_wake_lock;  /* held while any DMA active */
+
+	void (*exit_lpm_cb)(struct uart_port *);
 };
 
 #define MSM_UARTDM_BURST_SIZE 16   /* DM burst size (in bytes) */
@@ -483,6 +485,7 @@ static void msm_hs_set_bps_locked(struct uart_port *uport,
 	case 3500000:
 	case 3000000:
 	case 2500000:
+	case 2000000:
 	case 1500000:
 	case 1152000:
 	case 1000000:
@@ -936,6 +939,9 @@ static void msm_hs_start_tx_locked(struct uart_port *uport )
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 
 	clk_enable(msm_uport->clk);
+
+	if(msm_uport->exit_lpm_cb)
+		msm_uport->exit_lpm_cb(uport);
 
 	if (msm_uport->tx.tx_ready_int_en == 0) {
 		msm_uport->tx.tx_ready_int_en = 1;
@@ -1637,6 +1643,11 @@ static int __init msm_hs_probe(struct platform_device *pdev)
 		if (unlikely(msm_uport->wakeup.irq < 0))
 			return -ENXIO;
 	}
+
+	if (pdata == NULL)
+		msm_uport->exit_lpm_cb = NULL;
+	else
+		msm_uport->exit_lpm_cb = pdata->exit_lpm_cb;
 
 	resource = platform_get_resource_byname(pdev, IORESOURCE_DMA,
 						"uartdm_channels");

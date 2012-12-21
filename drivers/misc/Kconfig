@@ -370,6 +370,29 @@ config PMIC8058_UPL
 	  simple truth table based logic via a set of control registers. I/O may
 	  be routed in and out of the UPL module via GPIO or DTEST pins.
 
+config LM3560
+	tristate "LED driver for LM3560"
+	default n
+	depends on I2C
+	help
+	  This option enables support for LM3560
+	  led controller.
+
+config LM3561
+	tristate "LED driver for LM3561"
+	default n
+	depends on I2C
+	help
+	  This option enables support for LM3561
+	  led controller.
+
+config FPC_CONNECTOR_TEST
+	bool "Flat printed circuit cable test driver"
+	default n
+	help
+	  This option enables support FPC cable
+	  connection test.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

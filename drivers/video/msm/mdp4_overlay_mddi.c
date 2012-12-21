@@ -42,6 +42,10 @@ static struct mdp4_overlay_pipe *mddi_pipe;
 static struct mdp4_overlay_pipe *pending_pipe;
 static struct msm_fb_data_type *mddi_mfd;
 
+#define DMAP_VSYNC_START_Y_ADJUST -4
+#define DMAS_VSYNC_START_Y_ADJUST 5
+#define DMAP_VSYNC_START_Y_ADJUST_V2_1 4
+
 static struct completion mddi_delay_comp;
 static atomic_t mddi_delay_kickoff_cnt;
 
@@ -50,8 +54,6 @@ static atomic_t mddi_delay_kickoff_cnt;
 #ifdef MDDI_TIMER
 struct timer_list mddi_timer;
 #endif
-
-static int vsync_start_y_adjust = 4;
 
 static int dmap_vsync_enable;
 
@@ -69,6 +71,7 @@ void mdp4_mddi_vsync_enable(struct msm_fb_data_type *mfd,
 		struct mdp4_overlay_pipe *pipe, int which)
 {
 	uint32 start_y, data, tear_en;
+	int vsync_start_y_adjust;
 
 	tear_en = (1 << which);
 
@@ -81,6 +84,13 @@ void mdp4_mddi_vsync_enable(struct msm_fb_data_type *mfd,
 				mfd->panel_info.lcd.rev < 2) /* dma_p */
 				return;
 		}
+
+		if (mdp_hw_revision < MDP4_REVISION_V2_1)
+			vsync_start_y_adjust = which ?
+				DMAS_VSYNC_START_Y_ADJUST :
+				DMAP_VSYNC_START_Y_ADJUST;
+		else
+			vsync_start_y_adjust = DMAP_VSYNC_START_Y_ADJUST_V2_1;
 
 		if (vsync_start_y_adjust <= pipe->dst_y)
 			start_y = pipe->dst_y - vsync_start_y_adjust;
@@ -369,7 +379,6 @@ void mdp4_dma_p_done_mddi(void)
 void mdp4_overlay0_done_mddi()
 
 {
-
 	mdp_disable_irq_nosync(MDP_OVERLAY0_TERM);
 
 	if (pending_pipe)
@@ -454,9 +463,11 @@ void mdp4_mddi_kickoff_ui(struct msm_fb_data_type *mfd,
 #endif
 		atomic_set(&mddi_delay_kickoff_cnt, 1);
 		INIT_COMPLETION(mddi_delay_comp);
-		mutex_unlock(&mfd->dma->ov_mutex);
+		up(&mfd->dma->ov_sem);
 		wait_for_completion_killable(&mddi_delay_comp);
-		mutex_lock(&mfd->dma->ov_mutex);
+		down(&mfd->dma->ov_sem);
+		/* semaphore was re-locked, wait for DMA completion again*/
+		mdp4_mddi_dma_busy_wait(mfd, pipe);
 	}
 
 	mdp4_mddi_overlay_kickoff(mfd, pipe);
@@ -466,19 +477,31 @@ void mdp4_mddi_kickoff_ui(struct msm_fb_data_type *mfd,
 void mdp4_mddi_overlay_kickoff(struct msm_fb_data_type *mfd,
 				struct mdp4_overlay_pipe *pipe)
 {
+	struct msm_fb_panel_data *pdata =
+		(struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
 
 	down(&mfd->sem);
 	mdp_enable_irq(MDP_OVERLAY0_TERM);
 	mfd->dma->busy = TRUE;
+	if (pdata->power_on_panel_at_pan) {
+		INIT_COMPLETION(pipe->comp);
+		pending_pipe = pipe;
+	}
 	/* start OVERLAY pipe */
 	mdp_pipe_kickoff(MDP_OVERLAY0_TERM, mfd);
 	up(&mfd->sem);
+
+	if (pdata->power_on_panel_at_pan) {
+		wait_for_completion_killable(&pipe->comp);
+		pending_pipe = NULL;
+	}
 }
 
 void mdp4_dma_s_done_mddi()
 {
+	mdp_disable_irq_nosync(MDP_DMA_S_TERM);
 	if (pending_pipe)
-		complete(&pending_pipe->dmas_comp);
+		complete(&pending_pipe->comp);
 }
 void mdp4_dma_s_update_lcd(struct msm_fb_data_type *mfd,
 				struct mdp4_overlay_pipe *pipe)
@@ -552,20 +575,25 @@ void mdp4_dma_s_update_lcd(struct msm_fb_data_type *mfd,
 void mdp4_mddi_dma_s_kickoff(struct msm_fb_data_type *mfd,
 				struct mdp4_overlay_pipe *pipe)
 {
+	struct msm_fb_panel_data *pdata =
+		(struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
+
 	down(&mfd->sem);
 	mdp_enable_irq(MDP_DMA_S_TERM);
 	mfd->dma->busy = TRUE;
-	INIT_COMPLETION(pipe->dmas_comp);
 	mfd->ibuf_flushed = TRUE;
-	pending_pipe = pipe;
+	if (pdata->power_on_panel_at_pan) {
+		INIT_COMPLETION(pipe->comp);
+		pending_pipe = pipe;
+	}
 	/* start dma_s pipe */
 	mdp_pipe_kickoff(MDP_DMA_S_TERM, mfd);
 	up(&mfd->sem);
 
-	/* wait until DMA finishes the current job */
-	wait_for_completion_killable(&pipe->dmas_comp);
-	pending_pipe = NULL;
-	mdp_disable_irq(MDP_DMA_S_TERM);
+	if (pdata->power_on_panel_at_pan) {
+		wait_for_completion_killable(&pipe->comp);
+		pending_pipe = NULL;
+	}
 }
 
 void mdp4_mddi_overlay_dmas_restore(void)
@@ -581,7 +609,7 @@ void mdp4_mddi_overlay_dmas_restore(void)
 
 void mdp4_mddi_overlay(struct msm_fb_data_type *mfd)
 {
-	mutex_lock(&mfd->dma->ov_mutex);
+	down(&mfd->dma->ov_sem);
 
 	if (mfd && mfd->panel_power_on) {
 		mdp4_mddi_dma_busy_wait(mfd, mddi_pipe);
@@ -607,5 +635,5 @@ void mdp4_mddi_overlay(struct msm_fb_data_type *mfd)
 		}
 	}
 
-	mutex_unlock(&mfd->dma->ov_mutex);
+	up(&mfd->dma->ov_sem);
 }

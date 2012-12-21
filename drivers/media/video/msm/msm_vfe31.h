@@ -1,4 +1,5 @@
 /* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+ * Copyright (C) 2010 Sony Ericsson Mobile Communications AB.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -299,7 +300,6 @@ enum  VFE_STATE {
 #define V31_SYNC_TIMER_SETTING    104
 #define V31_ASYNC_TIMER_SETTING   105
 #define V31_LIVESHOT              106
-
 #define V31_CAMIF_OFF             0x000001E4
 #define V31_CAMIF_LEN             32
 

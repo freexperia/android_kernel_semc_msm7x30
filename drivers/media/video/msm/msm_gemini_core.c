@@ -1,4 +1,5 @@
 /* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+ * Copyright (C) 2010 Sony Ericsson Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -43,6 +44,16 @@ int msm_gemini_core_reset(uint8_t op_mode, void *base, int size)
 
 	return 0;
 }
+
+#if defined(CONFIG_SEMC_CAMERA_MODULE) || defined(CONFIG_SEMC_SUB_CAMERA_MODULE)
+struct msm_gemini_core_buf *msm_gemini_core_get_we_nonactive_buffer()
+{
+	struct msm_gemini_hw_buf *buf_p;
+	GMN_DBG("%s:%d]\n", __func__, __LINE__);
+	buf_p = msm_gemini_hw_pingpong_nonactive_buffer(&we_pingpong_buf);
+	return buf_p;
+}
+#endif
 
 int msm_gemini_core_fe_start(void)
 {

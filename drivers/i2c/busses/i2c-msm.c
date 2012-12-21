@@ -291,7 +291,7 @@ msm_i2c_poll_notbusy(struct msm_i2c_dev *dev)
 static int
 msm_i2c_recover_bus_busy(struct msm_i2c_dev *dev, struct i2c_adapter *adap)
 {
-	int i;
+	int i = 0;
 	int gpio_clk;
 	int gpio_dat;
 	uint32_t status = readl(dev->base + I2C_STATUS);
@@ -323,22 +323,27 @@ msm_i2c_recover_bus_busy(struct msm_i2c_dev *dev, struct i2c_adapter *adap)
 		       dev->base + I2C_WRITE_DATA);
 	}
 
-	for (i = 0; i < 9; i++) {
-		if (gpio_get_value(gpio_dat) && gpio_clk_status)
-			break;
-		gpio_direction_output(gpio_clk, 0);
-		udelay(5);
-		gpio_direction_output(gpio_dat, 0);
-		udelay(5);
-		gpio_direction_input(gpio_clk);
-		udelay(5);
-		if (!gpio_get_value(gpio_clk))
-			usleep_range(20, 30);
-		if (!gpio_get_value(gpio_clk))
-			msleep(10);
-		gpio_clk_status = gpio_get_value(gpio_clk);
-		gpio_direction_input(gpio_dat);
-		udelay(5);
+	/* If both gpios are the same and zero, they are not properly set */
+	if (gpio_clk == 0 && gpio_dat == 0) {
+		udelay(10);
+	} else {
+		for (i = 0; i < 9; i++) {
+			if (gpio_get_value(gpio_dat) && gpio_clk_status)
+				break;
+			gpio_direction_output(gpio_clk, 0);
+			udelay(5);
+			gpio_direction_output(gpio_dat, 0);
+			udelay(5);
+			gpio_direction_input(gpio_clk);
+			udelay(5);
+			if (!gpio_get_value(gpio_clk))
+				usleep_range(20, 30);
+			if (!gpio_get_value(gpio_clk))
+				msleep(10);
+			gpio_clk_status = gpio_get_value(gpio_clk);
+			gpio_direction_input(gpio_dat);
+			udelay(5);
+		}
 	}
 	dev->pdata->msm_i2c_config_gpio(adap->nr, 1);
 	udelay(10);

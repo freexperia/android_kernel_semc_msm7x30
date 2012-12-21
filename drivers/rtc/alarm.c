@@ -246,6 +246,7 @@ int alarm_set_rtc(struct timespec new_time)
 	unsigned long flags;
 	struct rtc_time rtc_new_rtc_time;
 	struct timespec tmp_time;
+	struct timespec current_rtc_time;
 
 	rtc_time_to_tm(new_time.tv_sec, &rtc_new_rtc_time);
 
@@ -255,6 +256,8 @@ int alarm_set_rtc(struct timespec new_time)
 		rtc_new_rtc_time.tm_sec, rtc_new_rtc_time.tm_mon + 1,
 		rtc_new_rtc_time.tm_mday,
 		rtc_new_rtc_time.tm_year + 1900);
+
+	getnstimeofday(&current_rtc_time);
 
 	mutex_lock(&alarm_setrtc_mutex);
 	spin_lock_irqsave(&alarm_slock, flags);
@@ -287,9 +290,31 @@ int alarm_set_rtc(struct timespec new_time)
 		goto err;
 	}
 	ret = rtc_set_time(alarm_rtc_dev, &rtc_new_rtc_time);
-	if (ret < 0)
+	if (ret < 0) {
 		pr_alarm(ERROR, "alarm_set_rtc: "
 			"Failed to set RTC, time will be lost on reboot\n");
+
+		spin_lock_irqsave(&alarm_slock, flags);
+		for (i = 0; i < ANDROID_ALARM_SYSTEMTIME; i++) {
+			hrtimer_try_to_cancel(&alarms[i].timer);
+			alarms[i].stopped = true;
+			alarms[i].stopped_time =
+				timespec_to_ktime(current_rtc_time);
+		}
+		spin_unlock_irqrestore(&alarm_slock, flags);
+		ret = do_settimeofday(&current_rtc_time);
+		spin_lock_irqsave(&alarm_slock, flags);
+		for (i = 0; i < ANDROID_ALARM_SYSTEMTIME; i++) {
+			alarms[i].stopped = false;
+			update_timer_locked(&alarms[i], false);
+		}
+		spin_unlock_irqrestore(&alarm_slock, flags);
+		if (ret < 0)
+			goto err;
+		rtc_time_to_tm(current_rtc_time.tv_sec, &rtc_new_rtc_time);
+		ret = rtc_set_time(alarm_rtc_dev, &rtc_new_rtc_time);
+		ret = -EFAULT;
+	}
 err:
 	wake_unlock(&alarm_rtc_wake_lock);
 	mutex_unlock(&alarm_setrtc_mutex);

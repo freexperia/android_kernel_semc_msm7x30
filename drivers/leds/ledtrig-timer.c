@@ -180,6 +180,8 @@ static void timer_trig_activate(struct led_classdev *led_cdev)
 	if (rc)
 		goto err_out_delayon;
 
+	kobject_uevent(&led_cdev->dev->kobj, KOBJ_ADD);
+
 	/* If there is hardware support for blinking, start one
 	 * user friendly blink rate chosen by the driver.
 	 */
@@ -207,6 +209,7 @@ static void timer_trig_deactivate(struct led_classdev *led_cdev)
 		del_timer_sync(&timer_data->timer);
 		kfree(timer_data);
 	}
+	kobject_uevent(&led_cdev->dev->kobj, KOBJ_REMOVE);
 
 	/* If there is hardware support for blinking, stop it */
 	if (led_cdev->blink_set)

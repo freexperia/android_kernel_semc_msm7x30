@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 1999-2003 David Woodhouse <dwmw2@infradead.org> et al.
+ * Copyright (C) 2010 Sony Ericsson Mobile Communications AB.
  *
  * Released under GPL
  */
@@ -247,6 +248,9 @@ struct mtd_info {
 	 * supposed to be called by MTD users */
 	int (*get_device) (struct mtd_info *mtd);
 	void (*put_device) (struct mtd_info *mtd);
+
+	/* If not 0: bad block marking also on second page */
+	uint32_t second_bbmarker;
 };
 
 static inline struct mtd_info *dev_to_mtd(struct device *dev)

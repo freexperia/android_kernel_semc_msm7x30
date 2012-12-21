@@ -463,4 +463,12 @@ config KEYBOARD_PMIC8058
 	  To compile this driver as a module, choose M here: the module will
 	  be called pmic8058-keypad.
 
+config KEYBOARD_PMIC8058_GHOST_DETECTION
+	bool "Qualcomm PMIC8058 keypad"
+	depends on KEYBOARD_PMIC8058
+	default y
+	help
+	  Say Y here if you want to enable the Ghost detection function for the
+	  PMIC8058 keyboard.
+
 endif

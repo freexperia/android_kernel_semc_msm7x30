@@ -324,6 +324,7 @@ static int __pmic8058_kp_scan_matrix(struct pmic8058_kp *kp, u16 *new_state,
 
 static int pmic8058_detect_ghost_keys(struct pmic8058_kp *kp, u16 *new_state)
 {
+#ifdef CONFIG_KEYBOARD_PMIC8058_GHOST_DETECTION
 	int row, found_first = -1;
 	u16 check, row_state;
 
@@ -343,6 +344,7 @@ static int pmic8058_detect_ghost_keys(struct pmic8058_kp *kp, u16 *new_state)
 		}
 		check |= row_state;
 	}
+#endif
 	return 0;
 }
 

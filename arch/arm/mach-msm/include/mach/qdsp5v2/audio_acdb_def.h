@@ -1,4 +1,5 @@
 /* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+ * Copyright (C) 2010, 2011 Sony Ericsson Mobile Communications AB
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -57,6 +58,24 @@
 #define ACDB_ID_HANDSET_MIC_ENDFIRE			0x2E
 #define ACDB_ID_I2S_TX					0x30
 #define ACDB_ID_HDMI					0x40
+
+#define ACDB_ID_SPKR_PHONE_RINGTONE_STEREO		0x108
+#define ACDB_ID_SPKR_PHONE_RINGTONE_MONO		0x107
+#define ACDB_ID_HEADSET_MONO_PLUS_SPKR_RINGTONE_MONO_RX	0x111
+#define ACDB_ID_HEADSET_STEREO_PLUS_SPKR_RINGTONE_STEREO_RX	0x114
+#define ACDB_ID_BT_SCO_HFP_MIC				0x109
+#define ACDB_ID_BT_SCO_HFP_SPKR				0x10A
+#define ACDB_ID_BT_DSP_SCO_MIC				0x119
+#define ACDB_ID_BT_DSP_SCO_SPKR				0x11A
+#define ACDB_ID_HANDSET_SPKR_HAC			0x101
+#define ACDB_ID_HEADPHONE_MIC				0x103
+#define ACDB_ID_HEADPHONE_MIC_ENDFIRE			0x12e
+#define ACDB_ID_HANDSET_SPKR_SKT			0x201
+#define ACDB_ID_HANDSET_MIC_SKT				0x202
+#define ACDB_ID_HANDSET_MIC_ENDFIRE_SKT 		0x22E
+#define ACDB_ID_HANDSET_SPKR_VZW			0x301
+#define ACDB_ID_HANDSET_MIC_VZW				0x302
+#define ACDB_ID_HANDSET_MIC_ENDFIRE_VZW		0x32E
 
 /* ID used for virtual devices */
 #define PSEUDO_ACDB_ID 					0xFFFF

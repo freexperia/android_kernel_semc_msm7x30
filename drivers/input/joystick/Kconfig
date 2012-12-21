@@ -327,4 +327,5 @@ config TOUCHDISC_VTD518_SHINETSU
 
 	  To compile this as a module choose M here: the module will be called
 	  tdisc_vtd518_shinetsu.
+
 endif

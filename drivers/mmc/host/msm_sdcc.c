@@ -4,6 +4,7 @@
  *  Copyright (C) 2007 Google Inc,
  *  Copyright (C) 2003 Deep Blue Solutions, Ltd, All Rights Reserved.
  *  Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+ *  Copyright (C) 2010 Sony Ericsson Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -56,7 +57,7 @@
 #define DRIVER_NAME "msm-sdcc"
 
 #define DBG(host, fmt, args...)	\
-	pr_debug("%s: %s: " fmt "\n", mmc_hostname(host->mmc), __func__ , args)
+	pr_debug("%s: %s: " fmt , mmc_hostname(host->mmc), __func__ , args)
 
 #define IRQ_DEBUG 0
 
@@ -1558,6 +1559,8 @@ msmsdcc_probe(struct platform_device *pdev)
 	host->sdcc_irq_disabled = 1;
 
 	if (plat->sdiowakeup_irq) {
+		wake_lock_init(&host->sdio_wlock, WAKE_LOCK_SUSPEND,
+					mmc_hostname(mmc));
 		ret = request_irq(plat->sdiowakeup_irq,
 			msmsdcc_platform_sdiowakeup_irq,
 			IRQF_SHARED | IRQF_TRIGGER_LOW,
@@ -1565,12 +1568,11 @@ msmsdcc_probe(struct platform_device *pdev)
 		if (ret) {
 			pr_err("Unable to get sdio wakeup IRQ %d (%d)\n",
 				plat->sdiowakeup_irq, ret);
+			wake_lock_destroy(&host->sdio_wlock);
 			goto pio_irq_free;
 		} else {
 			mmc->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
 			disable_irq(plat->sdiowakeup_irq);
-			wake_lock_init(&host->sdio_wlock, WAKE_LOCK_SUSPEND,
-					mmc_hostname(mmc));
 		}
 	}
 
@@ -1595,6 +1597,18 @@ msmsdcc_probe(struct platform_device *pdev)
 			pr_err("Unable to get slot IRQ %d (%d)\n",
 			       plat->status_irq, ret);
 			goto sdiowakeup_irq_free;
+		}
+		/*
+		 * Due to that sdiowakeup_irq is not available for non-SDIO
+		 * card the MMC driver doesn't receive interrupt when SD
+		 * card is inserted and the phone is in deep sleep. Hence the
+		 * wake-up interrupt enables explicitly using enable_irq_wake.
+		*/
+		device_init_wakeup(&pdev->dev, 1);
+		ret = enable_irq_wake(plat->status_irq);
+		if (ret) {
+			pr_err("enable_irq_wake failed, slot IRQ %d (%d)\n",
+				plat->status_irq, ret);
 		}
 	} else if (plat->register_status_notify) {
 		plat->register_status_notify(msmsdcc_status_notify_cb, host);
@@ -1778,152 +1792,66 @@ static int msmsdcc_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int
-msmsdcc_runtime_suspend(struct device *dev)
-{
-	struct mmc_host *mmc = dev_get_drvdata(dev);
-	struct msmsdcc_host *host = mmc_priv(mmc);
-	int rc = 0;
-
-	if (mmc) {
-		host->sdcc_suspending = 1;
-
-		/*
-		 * MMC core thinks that host is disabled by now since
-		 * runtime suspend is scheduled after msmsdcc_disable()
-		 * is called. Thus, MMC core will try to enable the host
-		 * while suspending it. This results in a synchronous
-		 * runtime resume request while in runtime suspending
-		 * context and hence inorder to complete this resume
-		 * requet, it will wait for suspend to be complete,
-		 * but runtime suspend also can not proceed further
-		 * until the host is resumed. Thus, it leads to a hang.
-		 * Hence, increase the pm usage count before suspending
-		 * the host so that any resume requests after this will
-		 * simple become pm usage counter increment operations.
-		 */
-		pm_runtime_get_noresume(dev);
-		rc = mmc_suspend_host(mmc, PMSG_SUSPEND);
-		pm_runtime_put_noidle(dev);
-
-		if (!rc) {
-			/*
-			 * If MMC core level suspend is not supported, turn
-			 * off clocks to allow deep sleep (TCXO shutdown).
-			 */
-			mmc->ios.clock = 0;
-			mmc->ops->set_ios(host->mmc, &host->mmc->ios);
-		}
-
-		if ((mmc->pm_flags & MMC_PM_WAKE_SDIO_IRQ) && mmc->card &&
-				mmc->card->type == MMC_TYPE_SDIO) {
-			host->sdio_irq_disabled = 0;
-			enable_irq_wake(host->plat->sdiowakeup_irq);
-			enable_irq(host->plat->sdiowakeup_irq);
-		}
-		host->sdcc_suspending = 0;
-	}
-	return rc;
-}
-
-static int
-msmsdcc_runtime_resume(struct device *dev)
-{
-	struct mmc_host *mmc = dev_get_drvdata(dev);
-	struct msmsdcc_host *host = mmc_priv(mmc);
-	unsigned long flags;
-	int release_lock = 0;
-
-	if (mmc) {
-		mmc->ios.clock = host->clk_rate;
-		mmc->ops->set_ios(host->mmc, &host->mmc->ios);
-
-		spin_lock_irqsave(&host->lock, flags);
-		writel(host->mci_irqenable, host->base + MMCIMASK0);
-
-		if ((mmc->pm_flags & MMC_PM_WAKE_SDIO_IRQ) &&
-				!host->sdio_irq_disabled) {
-			if (mmc->card && mmc->card->type == MMC_TYPE_SDIO) {
-				disable_irq_nosync(host->plat->sdiowakeup_irq);
-				disable_irq_wake(host->plat->sdiowakeup_irq);
-				host->sdio_irq_disabled = 1;
-			}
-		} else {
-			release_lock = 1;
-		}
-
-		spin_unlock_irqrestore(&host->lock, flags);
-
-		mmc_resume_host(mmc);
-
-		/*
-		 * After resuming the host wait for sometime so that
-		 * the SDIO work will be processed.
-		 */
-		if ((mmc->pm_flags & MMC_PM_WAKE_SDIO_IRQ) && release_lock)
-			wake_lock_timeout(&host->sdio_wlock, 1);
-
-		 wake_unlock(&host->sdio_suspend_wlock);
-	}
-	return 0;
-}
-
-static int msmsdcc_runtime_idle(struct device *dev)
-{
-	/* Idle timeout is not configurable for now */
-	pm_schedule_suspend(dev, MSM_MMC_IDLE_TIMEOUT);
-
-	return -EAGAIN;
-}
-
 static int msmsdcc_pm_suspend(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
-	struct msmsdcc_host *host = mmc_priv(mmc);
 	int rc = 0;
 
-	if (host->plat->status_irq)
-		disable_irq(host->plat->status_irq);
+	if (mmc) {
+		struct msmsdcc_host *host = mmc_priv(mmc);
 
-	if (!pm_runtime_suspended(dev))
-		rc = msmsdcc_runtime_suspend(dev);
+		if (mmc->card && mmc->card->type != MMC_TYPE_SDIO)
+			rc = mmc_suspend_host(mmc, PMSG_SUSPEND);
+		else if (host->plat->status_irq)
+			disable_irq(host->plat->status_irq);
 
+		if (!rc) {
+			writel(0, host->base + MMCIMASK0);
+
+			if (host->clks_on) {
+				clk_disable(host->clk);
+				clk_disable(host->pclk);
+				host->clks_on = 0;
+			}
+		}
+	}
 	return rc;
 }
 
 static int msmsdcc_pm_resume(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
-	struct msmsdcc_host *host = mmc_priv(mmc);
-	int rc = 0;
+	unsigned long flags;
 
-	rc = msmsdcc_runtime_resume(dev);
-	if (host->plat->status_irq)
-		enable_irq(host->plat->status_irq);
+	if (mmc) {
+		struct msmsdcc_host *host = mmc_priv(mmc);
 
-	/* Update the run-time PM status */
-	pm_runtime_disable(dev);
-	rc = pm_runtime_set_active(dev);
-	if (rc < 0)
-		pr_info("%s: %s: failed with error %d", mmc_hostname(mmc),
-				__func__, rc);
-	pm_runtime_enable(dev);
+		spin_lock_irqsave(&host->lock, flags);
 
-	return rc;
+		if (!host->clks_on) {
+			clk_enable(host->pclk);
+			clk_enable(host->clk);
+			host->clks_on = 1;
+		}
+
+		writel(host->mci_irqenable, host->base + MMCIMASK0);
+
+		spin_unlock_irqrestore(&host->lock, flags);
+
+		if (mmc->card && mmc->card->type != MMC_TYPE_SDIO)
+			mmc_resume_host(mmc);
+		else if (host->plat->status_irq)
+			enable_irq(host->plat->status_irq);
+	}
+	return 0;
 }
 
 #else
-#define msmsdcc_runtime_suspend NULL
-#define msmsdcc_runtime_resume NULL
-#define msmsdcc_runtime_idle NULL
 #define msmsdcc_pm_suspend NULL
 #define msmsdcc_pm_resume NULL
 #endif
 
 static const struct dev_pm_ops msmsdcc_dev_pm_ops = {
-	.runtime_suspend = msmsdcc_runtime_suspend,
-	.runtime_resume  = msmsdcc_runtime_resume,
-	.runtime_idle    = msmsdcc_runtime_idle,
 	.suspend 	 = msmsdcc_pm_suspend,
 	.resume		 = msmsdcc_pm_resume,
 };

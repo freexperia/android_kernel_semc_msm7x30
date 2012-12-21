@@ -24,6 +24,8 @@ struct msm_serial_hs_platform_data {
 	/* bool: inject char into rx tty on wakeup */
 	unsigned char inject_rx_on_wakeup;
 	char rx_to_inject;
+	const char *clk_name;
+	void (*exit_lpm_cb)(struct uart_port *);
 };
 
 unsigned int msm_hs_tx_empty(struct uart_port *uport);

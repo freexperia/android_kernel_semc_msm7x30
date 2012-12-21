@@ -242,6 +242,21 @@ config LEDS_BD2802
 	  This option enables support for BD2802GU RGB LED driver chips
 	  accessed via the I2C bus.
 
+config LEDS_AS3676
+        tristate "LED Support for AMS AS3676 I2C chips"
+        depends on LEDS_CLASS && I2C
+        help
+          This option enables support for LEDs connected to AS3676
+          LED driver chips accessed via the I2C bus.
+
+config LEDS_AS3676_HW_BLINK
+        bool "HW blink support for AS3676 chips"
+	default y
+        depends on LEDS_AS3676 && LEDS_TRIGGER_TIMER
+        help
+          This option enables support for HW blinking of LEDs connected to
+          an AS3676 chip. Say Y. Just do it.
+
 config LEDS_MSM_PMIC
         tristate "LED Support for Qualcomm PMIC connected LEDs"
         default y
@@ -259,6 +274,14 @@ config LEDS_PMIC8058
 	  This option enables support for LEDs connected over PMIC8058
 	  (Power Management IC) chip on Qualcomm reference boards,
 	  for example SURF and FFAs.
+
+config LEDS_LOW_CURRENT_PMIC
+	tristate "LED Support for Qualcomm PMIC connected low current LEDs"
+	default y
+	depends on LEDS_CLASS && ARCH_MSM
+	help
+	  This option enables support for LEDs (PM_LOW_CURRENT_LED_DRV0) connected over PMIC
+	  (Power Management IC) chip 8058 on MSM7x30.
 
 config LEDS_QCIBL
 	tristate "LED Support for Quanta LCD backlight"

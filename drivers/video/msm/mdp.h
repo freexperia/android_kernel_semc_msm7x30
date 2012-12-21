@@ -212,7 +212,7 @@ typedef struct mdp_ibuf_s {
 struct mdp_dma_data {
 	boolean busy;
 	boolean waiting;
-	struct mutex ov_mutex;
+	struct semaphore ov_sem;
 	struct semaphore mutex;
 	struct completion comp;
 };
@@ -678,6 +678,8 @@ int mdp_get_bytes_per_pixel(uint32_t format);
 #ifdef MDP_HW_VSYNC
 void mdp_hw_vsync_clk_enable(struct msm_fb_data_type *mfd);
 void mdp_hw_vsync_clk_disable(struct msm_fb_data_type *mfd);
+void mdp_vsync_clk_disable(void);
+void mdp_vsync_clk_enable(void);
 #endif
 
 #ifdef CONFIG_DEBUG_FS

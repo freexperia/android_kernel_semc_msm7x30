@@ -748,7 +748,15 @@ __tagtable(ATAG_REVISION, parse_tag_revision);
 
 static int __init parse_tag_cmdline(const struct tag *tag)
 {
-	strlcpy(default_command_line, tag->u.cmdline.cmdline, COMMAND_LINE_SIZE);
+        if (default_command_line[0]) {
+                strlcat(default_command_line, " ", COMMAND_LINE_SIZE);
+                strlcat(default_command_line, tag->u.cmdline.cmdline, COMMAND_LINE_SIZE);
+        } else {
+                strlcpy(default_command_line, tag->u.cmdline.cmdline, COMMAND_LINE_SIZE);
+        }
+
+
+//	strlcpy(default_command_line, tag->u.cmdline.cmdline, COMMAND_LINE_SIZE);
 	return 0;
 }
 

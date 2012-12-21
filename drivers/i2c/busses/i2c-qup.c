@@ -688,14 +688,16 @@ qup_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 				goto out_err;
 			}
 			if (dev->err) {
-				if (dev->err & QUP_I2C_NACK_FLAG)
+				if (dev->err & QUP_I2C_NACK_FLAG) {
 					dev_err(dev->dev,
 					"I2C slave addr:0x%x not connected\n",
 					dev->msg->addr);
-				else
+					ret = -ENODEV;
+				} else {
 					dev_err(dev->dev,
 					"QUP data xfer error %d\n", dev->err);
-				ret = dev->err;
+					ret = -EIO;
+				}
 				goto out_err;
 			}
 			if (dev->msg->flags & I2C_M_RD) {
@@ -1032,9 +1034,10 @@ qup_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int qup_i2c_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_SUSPEND
+static int qup_i2c_pm_suspend(struct device *dd)
 {
+	struct platform_device *pdev = to_platform_device(dd);
 	struct qup_i2c_dev *dev = platform_get_drvdata(pdev);
 
 	/* Grab mutex to ensure ongoing transaction is over */
@@ -1047,40 +1050,27 @@ static int qup_i2c_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int qup_i2c_resume(struct platform_device *pdev)
+static int qup_i2c_pm_resume(struct device *dd)
 {
+	struct platform_device *pdev = to_platform_device(dd);
 	struct qup_i2c_dev *dev = platform_get_drvdata(pdev);
 	dev->suspended = 0;
 	return 0;
 }
 #else
-#define qup_i2c_suspend NULL
-#define qup_i2c_resume NULL
-#endif /* CONFIG_PM */
-
-static int i2c_qup_runtime_suspend(struct device *dev)
-{
-	dev_dbg(dev, "pm_runtime: suspending...\n");
-	return 0;
-}
-
-static int i2c_qup_runtime_resume(struct device *dev)
-{
-	dev_dbg(dev, "pm_runtime: resuming...\n");
-	return 0;
-}
+#define qup_i2c_pm_suspend NULL
+#define qup_i2c_pm_resume NULL
+#endif /* CONFIG_SUSPEND */
 
 static const struct dev_pm_ops i2c_qup_dev_pm_ops = {
-	.runtime_suspend = i2c_qup_runtime_suspend,
-	.runtime_resume = i2c_qup_runtime_resume,
+	.suspend = qup_i2c_pm_suspend,
+	.resume = qup_i2c_pm_resume,
 };
 
 
 static struct platform_driver qup_i2c_driver = {
 	.probe		= qup_i2c_probe,
 	.remove		= __devexit_p(qup_i2c_remove),
-	.suspend	= qup_i2c_suspend,
-	.resume		= qup_i2c_resume,
 	.driver		= {
 		.name	= "qup_i2c",
 		.owner	= THIS_MODULE,

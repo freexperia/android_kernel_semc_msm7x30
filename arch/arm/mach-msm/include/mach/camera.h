@@ -1,4 +1,5 @@
 /* Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (C) 2010 Sony Ericsson Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -244,6 +245,9 @@ struct msm_sync {
 	struct msm_camvpe_fn vpefn;
 	struct msm_sensor_ctrl sctrl;
 	struct msm_strobe_flash_ctrl sfctrl;
+#if defined(CONFIG_SEMC_CAMERA_MODULE) || defined(CONFIG_SEMC_SUB_CAMERA_MODULE)
+	struct wake_lock suspend_lock;
+#endif
 	struct wake_lock wake_lock;
 	struct platform_device *pdev;
 	uint8_t opencnt;
@@ -267,6 +271,7 @@ struct msm_sync {
 	spinlock_t pmem_frame_spinlock;
 	spinlock_t pmem_stats_spinlock;
 	spinlock_t abort_pict_lock;
+
 };
 
 #define MSM_APPS_ID_V4L2 "msm_v4l2"
@@ -434,6 +439,9 @@ int  msm_camio_clk_config(uint32_t freq);
 void msm_camio_clk_rate_set(int rate);
 void msm_camio_clk_rate_set_2(struct clk *clk, int rate);
 void msm_camio_clk_set_min_rate(struct clk *clk, int rate);
+#if defined(CONFIG_SEMC_CAMERA_MODULE) || defined(CONFIG_SEMC_SUB_CAMERA_MODULE)
+void msm_camio_cam_mclk_enable(int rate);
+#endif
 void msm_camio_clk_axi_rate_set(int rate);
 void msm_disable_io_gpio_clk(struct platform_device *);
 

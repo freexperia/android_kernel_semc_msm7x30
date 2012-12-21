@@ -1,4 +1,5 @@
 /* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+ * Copyright (C) 2010 Sony Ericsson Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -56,8 +57,13 @@ inline void *msm_gemini_q_out(struct msm_gemini_q *q_p)
 		data = q_entry_p->data;
 		kfree(q_entry_p);
 	} else {
+#if defined(CONFIG_SEMC_CAMERA_MODULE) || defined(CONFIG_SEMC_SUB_CAMERA_MODULE)
+		GMN_DBG("%s:%d] %s no entry\n", __func__, __LINE__,
+			q_p->name);
+#else
 		GMN_PR_ERR("%s:%d] %s no entry\n", __func__, __LINE__,
 			q_p->name);
+#endif
 	}
 
 	return data;
@@ -201,7 +207,11 @@ int msm_gemini_evt_get(struct msm_gemini_device *pgmn_dev,
 	buf_p = msm_gemini_q_out(&pgmn_dev->evt_q);
 
 	if (!buf_p) {
+#if defined(CONFIG_SEMC_CAMERA_MODULE) || defined(CONFIG_SEMC_SUB_CAMERA_MODULE)
+		GMN_DBG("%s:%d] no buffer\n", __func__, __LINE__);
+#else
 		GMN_PR_ERR("%s:%d] no buffer\n", __func__, __LINE__);
+#endif
 		return -EAGAIN;
 	}
 
@@ -240,6 +250,10 @@ void msm_gemini_err_irq(struct msm_gemini_device *pgmn_dev,
 	GMN_PR_ERR("%s:%d] error: %d\n", __func__, __LINE__, event);
 
 	buf.vbuf.type = MSM_GEMINI_EVT_ERR;
+#if defined(CONFIG_SEMC_CAMERA_MODULE) || defined(CONFIG_SEMC_SUB_CAMERA_MODULE)
+	if (event == MSM_GEMINI_HW_IRQ_STATUS_WE_Y_BUFFER_OVERFLOW_MASK)
+		buf.vbuf.type = MSM_GEMINI_EVT_BUFFER_OVER;
+#endif
 	rc = msm_gemini_q_in_buf(&pgmn_dev->evt_q, &buf);
 	if (!rc)
 		rc = msm_gemini_q_wakeup(&pgmn_dev->evt_q);
@@ -275,7 +289,11 @@ int msm_gemini_we_pingpong_irq(struct msm_gemini_device *pgmn_dev,
 		rc = msm_gemini_core_we_buf_update(buf_out);
 		kfree(buf_out);
 	} else {
+#if defined(CONFIG_SEMC_CAMERA_MODULE) || defined(CONFIG_SEMC_SUB_CAMERA_MODULE)
+		GMN_DBG("%s:%d] no output buffer\n", __func__, __LINE__);
+#else
 		GMN_PR_ERR("%s:%d] no output buffer\n", __func__, __LINE__);
+#endif
 		rc = -2;
 	}
 
@@ -284,6 +302,24 @@ int msm_gemini_we_pingpong_irq(struct msm_gemini_device *pgmn_dev,
 
 	return rc;
 }
+
+#if defined(CONFIG_SEMC_CAMERA_MODULE) || defined(CONFIG_SEMC_SUB_CAMERA_MODULE)
+int msm_gemini_re_register_we_buf(struct msm_gemini_core_buf *buf_out)
+{
+	int rc = 0;
+
+	GMN_DBG("%s:%d] Enter\n", __func__, __LINE__);
+
+	if (buf_out) {
+		rc = msm_gemini_core_we_buf_update(buf_out);
+	} else {
+		GMN_DBG("%s:%d] no output buffer\n", __func__, __LINE__);
+		rc = -2;
+	}
+
+	return rc;
+}
+#endif
 
 int msm_gemini_output_get(struct msm_gemini_device *pgmn_dev, void __user *to)
 {
@@ -296,8 +332,13 @@ int msm_gemini_output_get(struct msm_gemini_device *pgmn_dev, void __user *to)
 	buf_p = msm_gemini_q_out(&pgmn_dev->output_rtn_q);
 
 	if (!buf_p) {
+#if defined(CONFIG_SEMC_CAMERA_MODULE) || defined(CONFIG_SEMC_SUB_CAMERA_MODULE)
+		GMN_DBG("%s:%d] no output buffer return\n",
+			__func__, __LINE__);
+#else
 		GMN_PR_ERR("%s:%d] no output buffer return\n",
 			__func__, __LINE__);
+#endif
 		return -EAGAIN;
 	}
 
@@ -384,7 +425,11 @@ int msm_gemini_fe_pingpong_irq(struct msm_gemini_device *pgmn_dev,
 		kfree(buf_out);
 		msm_gemini_core_fe_start();
 	} else {
+#if defined(CONFIG_SEMC_CAMERA_MODULE) || defined(CONFIG_SEMC_SUB_CAMERA_MODULE)
+		GMN_DBG("%s:%d] no input buffer\n", __func__, __LINE__);
+#else
 		GMN_PR_ERR("%s:%d] no input buffer\n", __func__, __LINE__);
+#endif
 		rc = -2;
 	}
 
@@ -404,8 +449,13 @@ int msm_gemini_input_get(struct msm_gemini_device *pgmn_dev, void __user * to)
 	buf_p = msm_gemini_q_out(&pgmn_dev->input_rtn_q);
 
 	if (!buf_p) {
+#if defined(CONFIG_SEMC_CAMERA_MODULE) || defined(CONFIG_SEMC_SUB_CAMERA_MODULE)
+		GMN_DBG("%s:%d] no input buffer return\n",
+			__func__, __LINE__);
+#else
 		GMN_PR_ERR("%s:%d] no input buffer return\n",
 			__func__, __LINE__);
+#endif
 		return -EAGAIN;
 	}
 
@@ -476,11 +526,21 @@ int msm_gemini_irq(int event, void *context, void *data)
 {
 	struct msm_gemini_device *pgmn_dev =
 		(struct msm_gemini_device *) context;
+#if defined(CONFIG_SEMC_CAMERA_MODULE) || defined(CONFIG_SEMC_SUB_CAMERA_MODULE)
+	struct msm_gemini_core_buf *we_buf;
+#endif
 
 	switch (event) {
 	case MSM_GEMINI_HW_MASK_COMP_FRAMEDONE:
 		msm_gemini_framedone_irq(pgmn_dev, data);
 		msm_gemini_we_pingpong_irq(pgmn_dev, data);
+#if defined(CONFIG_SEMC_CAMERA_MODULE) || defined(CONFIG_SEMC_SUB_CAMERA_MODULE)
+		we_buf = msm_gemini_core_get_we_nonactive_buffer();
+		if (we_buf) {
+			msm_gemini_q_in_buf(&pgmn_dev->output_rtn_q, we_buf);
+			msm_gemini_q_wakeup(&pgmn_dev->output_rtn_q);
+		}
+#endif
 		break;
 
 	case MSM_GEMINI_HW_MASK_COMP_FE:
@@ -488,7 +548,14 @@ int msm_gemini_irq(int event, void *context, void *data)
 		break;
 
 	case MSM_GEMINI_HW_MASK_COMP_WE:
+#if defined(CONFIG_SEMC_CAMERA_MODULE) || defined(CONFIG_SEMC_SUB_CAMERA_MODULE)
+		if (data)
+			msm_gemini_re_register_we_buf(data);
+		msm_gemini_err_irq(pgmn_dev,
+			MSM_GEMINI_HW_IRQ_STATUS_WE_Y_BUFFER_OVERFLOW_MASK);
+#else
 		msm_gemini_we_pingpong_irq(pgmn_dev, data);
+#endif
 		break;
 
 	case MSM_GEMINI_HW_MASK_COMP_RESET_ACK:
@@ -658,8 +725,13 @@ int msm_gemini_start(struct msm_gemini_device *pgmn_dev, void * __user arg)
 			msm_gemini_core_we_buf_update(buf_out);
 			kfree(buf_out);
 		} else {
+#if defined(CONFIG_SEMC_CAMERA_MODULE) || defined(CONFIG_SEMC_SUB_CAMERA_MODULE)
+			GMN_DBG("%s:%d] no output buffer\n",
+			__func__, __LINE__);
+#else
 			GMN_PR_ERR("%s:%d] no output buffer\n",
 			__func__, __LINE__);
+#endif
 			break;
 		}
 	}

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2009 Google, Inc.
+ * Copyright (C) 2010 Sony Ericsson Mobile Communications AB.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -58,12 +59,16 @@ static void set_wake_locked(int wake)
 		return;
 	bt_lpm.wake = wake;
 
-	if (wake || bt_lpm.host_wake)
+	if (wake || bt_lpm.host_wake) {
 		bt_lpm.request_clock_on_locked(bt_lpm.uport);
-	else
+		gpio_set_value(bt_lpm.gpio_wake, wake);
+		bt_lpm.uport->ops->set_mctrl(bt_lpm.uport, TIOCM_RTS);
+	} else {
+		gpio_set_value(bt_lpm.gpio_wake, 0);
+		bt_lpm.uport->ops->set_mctrl(bt_lpm.uport, 0);
 		bt_lpm.request_clock_off_locked(bt_lpm.uport);
+	}
 
-	gpio_set_value(bt_lpm.gpio_wake, wake);
 }
 
 static enum hrtimer_restart enter_lpm(struct hrtimer *timer) {
@@ -94,10 +99,13 @@ static void update_host_wake_locked(int host_wake)
 		return;
 	bt_lpm.host_wake = host_wake;
 
-	if (bt_lpm.wake || host_wake)
+	if (bt_lpm.wake || host_wake) {
 		bt_lpm.request_clock_on_locked(bt_lpm.uport);
-	else
+		bt_lpm.uport->ops->set_mctrl(bt_lpm.uport, TIOCM_RTS);
+	} else {
+		bt_lpm.uport->ops->set_mctrl(bt_lpm.uport, 0);
 		bt_lpm.request_clock_off_locked(bt_lpm.uport);
+	}
 }
 
 static irqreturn_t host_wake_isr(int irq, void *dev)
@@ -106,7 +114,6 @@ static irqreturn_t host_wake_isr(int irq, void *dev)
 	unsigned long flags;
 
 	host_wake = gpio_get_value(bt_lpm.gpio_host_wake);
-	set_irq_type(irq, host_wake ? IRQF_TRIGGER_LOW : IRQF_TRIGGER_HIGH);
 
 	if (!bt_lpm.uport) {
 		bt_lpm.host_wake = host_wake;
@@ -146,7 +153,8 @@ static int bcm_bt_lpm_probe(struct platform_device *pdev)
 	bt_lpm.host_wake = 0;
 
 	irq = gpio_to_irq(bt_lpm.gpio_host_wake);
-	ret = request_irq(irq, host_wake_isr, IRQF_TRIGGER_HIGH,
+	ret = request_irq(irq, host_wake_isr,
+			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 			"bt host_wake", NULL);
 	if (ret)
 		return ret;

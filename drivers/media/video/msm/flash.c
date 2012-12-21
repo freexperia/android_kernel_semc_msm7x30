@@ -1,5 +1,5 @@
-
 /* Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (C) 2010 Sony Ericsson Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -111,6 +111,7 @@ int msm_camera_flash_pmic(
 	return rc;
 }
 
+
 int32_t msm_camera_flash_set_led_state(
 	struct msm_camera_sensor_flash_data *fdata, unsigned led_state)
 {
@@ -132,7 +133,6 @@ int32_t msm_camera_flash_set_led_state(
 		rc = msm_camera_flash_pwm(&fdata->flash_src->_fsrc.pwm_src,
 			led_state);
 		break;
-
 	default:
 		rc = -ENODEV;
 		break;

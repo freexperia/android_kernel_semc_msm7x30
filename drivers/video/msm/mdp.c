@@ -36,6 +36,8 @@
 #include <asm/mach-types.h>
 #include <linux/semaphore.h>
 #include <linux/uaccess.h>
+
+#include "mddihost.h"
 #include "mdp.h"
 #include "msm_fb.h"
 #ifdef CONFIG_FB_MSM_MDP40
@@ -530,6 +532,8 @@ void mdp_pipe_ctrl(MDP_BLOCK_TYPE block, MDP_BLOCK_POWER_STATE state,
 			if (block == MDP_MASTER_BLOCK) {
 				mdp_current_clk_on = FALSE;
 				/* turn off MDP clks */
+				mdp_vsync_clk_disable();
+				pmdh_clk_disable();
 				if (mdp_clk != NULL) {
 					clk_disable(mdp_clk);
 					MSM_FB_DEBUG("MDP CLK OFF\n");
@@ -547,6 +551,7 @@ void mdp_pipe_ctrl(MDP_BLOCK_TYPE block, MDP_BLOCK_POWER_STATE state,
 		} else if ((!mdp_all_blocks_off) && (!mdp_current_clk_on)) {
 			mdp_current_clk_on = TRUE;
 			/* turn on MDP clks */
+			pmdh_clk_enable();
 			if (mdp_clk != NULL) {
 				clk_enable(mdp_clk);
 				MSM_FB_DEBUG("MDP CLK ON\n");
@@ -555,6 +560,7 @@ void mdp_pipe_ctrl(MDP_BLOCK_TYPE block, MDP_BLOCK_POWER_STATE state,
 				clk_enable(mdp_pclk);
 				MSM_FB_DEBUG("MDP PCLK ON\n");
 			}
+			mdp_vsync_clk_enable();
 		}
 		up(&mdp_pipe_ctrl_mutex);
 	}
@@ -717,7 +723,7 @@ static void mdp_drv_init(void)
 	dma2_data.waiting = FALSE;
 	init_completion(&dma2_data.comp);
 	init_MUTEX(&dma2_data.mutex);
-	mutex_init(&dma2_data.ov_mutex);
+	sema_init(&dma2_data.ov_sem,1);
 
 	dma3_data.busy = FALSE;
 	dma3_data.waiting = FALSE;
@@ -732,7 +738,7 @@ static void mdp_drv_init(void)
 	dma_e_data.busy = FALSE;
 	dma_e_data.waiting = FALSE;
 	init_completion(&dma_e_data.comp);
-	mutex_init(&dma_e_data.ov_mutex);
+	sema_init(&dma_e_data.ov_sem,1);
 
 #ifndef CONFIG_FB_MSM_MDP22
 	init_completion(&mdp_hist_comp);
@@ -894,6 +900,10 @@ void mdp_hw_version(void)
 
 	mdp_hw_revision >>= 28;	/* bit 31:28 */
 	mdp_hw_revision &= 0x0f;
+
+	/* Disabled MSM2.1 activation */
+	if (mdp_hw_revision >= MDP4_REVISION_V2_1)
+		mdp_hw_revision = MDP4_REVISION_V2;
 
 	printk(KERN_INFO "%s: mdp_hw_revision=%x\n",
 				__func__, mdp_hw_revision);

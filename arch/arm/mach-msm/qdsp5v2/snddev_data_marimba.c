@@ -1,4 +1,5 @@
 /* Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (C) 2010, 2011 Sony Ericsson Mobile Communications AB
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,7 +21,7 @@
 #include <linux/mfd/msm-adie-codec.h>
 #include <linux/uaccess.h>
 #include <mach/qdsp5v2/snddev_icodec.h>
-#include <mach/qdsp5v2/marimba_profile.h>
+#include <mach/qdsp5v2/marimba_profile_platform.h>
 #include <mach/qdsp5v2/aux_pcm.h>
 #include <mach/qdsp5v2/snddev_ecodec.h>
 #include <mach/qdsp5v2/audio_dev_ctl.h>
@@ -73,18 +74,102 @@ static struct snddev_icodec_data snddev_iearpiece_data = {
 	.pmctl_id = NULL,
 	.pmctl_id_sz = 0,
 	.default_sample_rate = 48000,
-	.pamp_on = NULL,
-	.pamp_off = NULL,
+	.pamp_on = msm_hac_amp_on,
+	.pamp_off = msm_hac_amp_off,
 	.max_voice_rx_vol[VOC_NB_INDEX] = -200,
-	.min_voice_rx_vol[VOC_NB_INDEX] = -1700,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -2200,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -200,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -1700
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2200
 };
 
 static struct platform_device msm_iearpiece_device = {
 	.name = "snddev_icodec",
 	.id = 0,
 	.dev = { .platform_data = &snddev_iearpiece_data },
+};
+
+static struct adie_codec_action_unit iearpiece_skt_48KHz_osr256_actions[] =
+	HANDSET_RX_SKT_48000_OSR_256;
+
+static struct adie_codec_hwsetting_entry iearpiece_skt_settings[] = {
+	{
+		.freq_plan = 48000,
+		.osr = 256,
+		.actions = iearpiece_skt_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(iearpiece_skt_48KHz_osr256_actions),
+	}
+};
+
+static struct adie_codec_dev_profile iearpiece_skt_profile = {
+	.path_type = ADIE_CODEC_RX,
+	.settings = iearpiece_skt_settings,
+	.setting_sz = ARRAY_SIZE(iearpiece_skt_settings),
+};
+
+static struct snddev_icodec_data snddev_iearpiece_skt_data = {
+	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
+	.name = "handset_skt_rx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_HANDSET_SPKR_SKT,
+	.profile = &iearpiece_skt_profile,
+	.channel_mode = 1,
+	.pmctl_id = NULL,
+	.pmctl_id_sz = 0,
+	.default_sample_rate = 48000,
+	.pamp_on = msm_hac_amp_on,
+	.pamp_off = msm_hac_amp_off,
+	.max_voice_rx_vol[VOC_NB_INDEX] = -200,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -2200,
+	.max_voice_rx_vol[VOC_WB_INDEX] = -200,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2200
+};
+
+static struct platform_device msm_iearpiece_skt_device = {
+	.name = "snddev_icodec",
+	.id = 43,
+	.dev = { .platform_data = &snddev_iearpiece_skt_data },
+};
+
+static struct adie_codec_action_unit iearpiece_vzw_48KHz_osr256_actions[] =
+	HANDSET_RX_VZW_48000_OSR_256;
+
+static struct adie_codec_hwsetting_entry iearpiece_vzw_settings[] = {
+	{
+		.freq_plan = 48000,
+		.osr = 256,
+		.actions = iearpiece_vzw_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(iearpiece_vzw_48KHz_osr256_actions),
+	}
+};
+
+static struct adie_codec_dev_profile iearpiece_vzw_profile = {
+	.path_type = ADIE_CODEC_RX,
+	.settings = iearpiece_vzw_settings,
+	.setting_sz = ARRAY_SIZE(iearpiece_vzw_settings),
+};
+
+static struct snddev_icodec_data snddev_iearpiece_vzw_data = {
+	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
+	.name = "handset_vzw_rx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_HANDSET_SPKR_VZW,
+	.profile = &iearpiece_vzw_profile,
+	.channel_mode = 1,
+	.pmctl_id = NULL,
+	.pmctl_id_sz = 0,
+	.default_sample_rate = 48000,
+	.pamp_on = msm_hac_amp_on,
+	.pamp_off = msm_hac_amp_off,
+	.max_voice_rx_vol[VOC_NB_INDEX] = -200,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -2200,
+	.max_voice_rx_vol[VOC_WB_INDEX] = -200,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2200
+};
+
+static struct platform_device msm_iearpiece_vzw_device = {
+	.name = "snddev_icodec",
+	.id = 46,
+	.dev = { .platform_data = &snddev_iearpiece_vzw_data },
 };
 
 static struct adie_codec_action_unit imic_8KHz_osr256_actions[] =
@@ -145,8 +230,108 @@ static struct platform_device msm_imic_device = {
 	.dev = { .platform_data = &snddev_imic_data },
 };
 
+static struct adie_codec_action_unit imic_skt_48KHz_osr256_actions[] =
+	HANDSET_TX_SKT_48000_OSR_256;
+
+static struct adie_codec_hwsetting_entry imic_skt_settings[] = {
+	{
+		.freq_plan = 8000,
+		.osr = 256,
+		.actions = imic_skt_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(imic_skt_48KHz_osr256_actions),
+	},
+	{
+		.freq_plan = 16000,
+		.osr = 256,
+		.actions = imic_skt_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(imic_skt_48KHz_osr256_actions),
+	},
+	{
+		.freq_plan = 48000,
+		.osr = 256,
+		.actions = imic_skt_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(imic_skt_48KHz_osr256_actions),
+	}
+};
+
+static struct adie_codec_dev_profile imic_skt_profile = {
+	.path_type = ADIE_CODEC_TX,
+	.settings = imic_skt_settings,
+	.setting_sz = ARRAY_SIZE(imic_skt_settings),
+};
+
+static struct snddev_icodec_data snddev_imic_skt_data = {
+	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
+	.name = "handset_skt_tx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_HANDSET_MIC_SKT,
+	.profile = &imic_skt_profile,
+	.channel_mode = 1,
+	.pmctl_id = imic_pmctl_id,
+	.pmctl_id_sz = ARRAY_SIZE(imic_pmctl_id),
+	.default_sample_rate = 48000,
+	.pamp_on = NULL,
+	.pamp_off = NULL,
+};
+
+static struct platform_device msm_imic_skt_device = {
+	.name = "snddev_icodec",
+	.id = 44,
+	.dev = { .platform_data = &snddev_imic_skt_data },
+};
+
+static struct adie_codec_action_unit imic_vzw_48KHz_osr256_actions[] =
+	HANDSET_TX_VZW_48000_OSR_256;
+
+static struct adie_codec_hwsetting_entry imic_vzw_settings[] = {
+	{
+		.freq_plan = 8000,
+		.osr = 256,
+		.actions = imic_vzw_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(imic_vzw_48KHz_osr256_actions),
+	},
+	{
+		.freq_plan = 16000,
+		.osr = 256,
+		.actions = imic_vzw_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(imic_vzw_48KHz_osr256_actions),
+	},
+	{
+		.freq_plan = 48000,
+		.osr = 256,
+		.actions = imic_vzw_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(imic_vzw_48KHz_osr256_actions),
+	}
+};
+
+static struct adie_codec_dev_profile imic_vzw_profile = {
+	.path_type = ADIE_CODEC_TX,
+	.settings = imic_vzw_settings,
+	.setting_sz = ARRAY_SIZE(imic_vzw_settings),
+};
+
+static struct snddev_icodec_data snddev_imic_vzw_data = {
+	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
+	.name = "handset_vzw_tx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_HANDSET_MIC_VZW,
+	.profile = &imic_vzw_profile,
+	.channel_mode = 1,
+	.pmctl_id = imic_pmctl_id,
+	.pmctl_id_sz = ARRAY_SIZE(imic_pmctl_id),
+	.default_sample_rate = 48000,
+	.pamp_on = NULL,
+	.pamp_off = NULL,
+};
+
+static struct platform_device msm_imic_vzw_device = {
+	.name = "snddev_icodec",
+	.id = 47,
+	.dev = { .platform_data = &snddev_imic_vzw_data },
+};
+
 static struct adie_codec_action_unit ihs_stereo_rx_48KHz_osr256_actions[] =
-	HEADSET_STEREO_RX_LEGACY_48000_OSR_256;
+	HEADSET_STEREO_RX_CAPLESS_48000_OSR_256;
 
 static struct adie_codec_hwsetting_entry ihs_stereo_rx_settings[] = {
 	{
@@ -173,10 +358,12 @@ static struct snddev_icodec_data snddev_ihs_stereo_rx_data = {
 	.default_sample_rate = 48000,
 	.pamp_on = NULL,
 	.pamp_off = NULL,
+	.voltage_on = msm_snddev_hsed_voltage_on,
+	.voltage_off = msm_snddev_hsed_voltage_off,
 	.max_voice_rx_vol[VOC_NB_INDEX] = -700,
-	.min_voice_rx_vol[VOC_NB_INDEX] = -2200,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -2700,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -900,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -2400
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2900
 };
 
 static struct platform_device msm_ihs_stereo_rx_device = {
@@ -213,10 +400,12 @@ static struct snddev_icodec_data snddev_ihs_mono_rx_data = {
 	.default_sample_rate = 48000,
 	.pamp_on = NULL,
 	.pamp_off = NULL,
+	.voltage_on = msm_snddev_hsed_voltage_on,
+	.voltage_off = msm_snddev_hsed_voltage_off,
 	.max_voice_rx_vol[VOC_NB_INDEX] = -700,
-	.min_voice_rx_vol[VOC_NB_INDEX] = -2200,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -2700,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -900,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -2400,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2900,
 
 };
 
@@ -464,10 +653,10 @@ static struct snddev_icodec_data snddev_ispeaker_rx_data = {
 	.default_sample_rate = 48000,
 	.pamp_on = &msm_snddev_poweramp_on,
 	.pamp_off = &msm_snddev_poweramp_off,
-	.max_voice_rx_vol[VOC_NB_INDEX] = 1000,
-	.min_voice_rx_vol[VOC_NB_INDEX] = -500,
-	.max_voice_rx_vol[VOC_WB_INDEX] = 1000,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -500,
+	.max_voice_rx_vol[VOC_NB_INDEX] = 0,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -1500,
+	.max_voice_rx_vol[VOC_WB_INDEX] = 0,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -1500,
 };
 
 static struct platform_device msm_ispeaker_rx_device = {
@@ -542,6 +731,8 @@ static struct snddev_icodec_data snddev_ifmradio_headset_data = {
 	.default_sample_rate = 8000,
 	.pamp_on = NULL,
 	.pamp_off = NULL,
+	.voltage_on = msm_snddev_hsed_voltage_on,
+	.voltage_off = msm_snddev_hsed_voltage_off,
 	.dev_vol_type = SNDDEV_DEV_VOL_DIGITAL,
 };
 
@@ -598,9 +789,9 @@ static struct snddev_ecodec_data snddev_bt_sco_earpiece_data = {
 	.conf_pcm_ctl_val = BT_SCO_PCM_CTL_VAL,
 	.conf_aux_codec_intf = BT_SCO_AUX_CODEC_INTF,
 	.conf_data_format_padding_val = BT_SCO_DATA_FORMAT_PADDING,
-	.max_voice_rx_vol[VOC_NB_INDEX] = 400,
+	.max_voice_rx_vol[VOC_NB_INDEX] = 0,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -1100,
-	.max_voice_rx_vol[VOC_WB_INDEX] = 400,
+	.max_voice_rx_vol[VOC_WB_INDEX] = 0,
 	.min_voice_rx_vol[VOC_WB_INDEX] = -1100,
 };
 
@@ -628,7 +819,7 @@ struct platform_device msm_bt_sco_mic_device = {
 };
 
 static struct adie_codec_action_unit idual_mic_endfire_8KHz_osr256_actions[] =
-	MIC1_LEFT_LINE_IN_RIGHT_8000_OSR_256;
+	MIC1_LEFT_AUX_IN_RIGHT_8000_OSR_256;
 
 static struct adie_codec_hwsetting_entry idual_mic_endfire_settings[] = {
 	{
@@ -658,7 +849,7 @@ static struct adie_codec_dev_profile idual_mic_endfire_profile = {
 };
 
 static enum hsed_controller idual_mic_endfire_pmctl_id[] = {
-	PM_HSED_CONTROLLER_0, PM_HSED_CONTROLLER_2
+	PM_HSED_CONTROLLER_0
 };
 
 static struct snddev_icodec_data snddev_idual_mic_endfire_data = {
@@ -681,14 +872,142 @@ static struct platform_device msm_idual_mic_endfire_device = {
 	.dev = { .platform_data = &snddev_idual_mic_endfire_data },
 };
 
+static struct adie_codec_action_unit idual_mic_endfire_skt_8KHz_osr256_actions[] =
+	MIC1_LEFT_AUX_IN_RIGHT_SKT_8000_OSR_256;
 
-static struct snddev_icodec_data\
-		snddev_idual_mic_endfire_real_stereo_data = {
+static struct adie_codec_hwsetting_entry idual_mic_endfire_skt_settings[] = {
+	{
+		.freq_plan = 8000,
+		.osr = 256,
+		.actions = idual_mic_endfire_skt_8KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(idual_mic_endfire_skt_8KHz_osr256_actions),
+	}, /* 8KHz profile can be used for 16KHz */
+	{
+		.freq_plan = 16000,
+		.osr = 256,
+		.actions = idual_mic_endfire_skt_8KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(idual_mic_endfire_skt_8KHz_osr256_actions),
+	}, /* 8KHz profile can be used for 48KHz */
+	{
+		.freq_plan = 48000,
+		.osr = 256,
+		.actions = idual_mic_endfire_skt_8KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(idual_mic_endfire_skt_8KHz_osr256_actions),
+	}
+};
+
+static struct adie_codec_dev_profile idual_mic_endfire_skt_profile = {
+	.path_type = ADIE_CODEC_TX,
+	.settings = idual_mic_endfire_skt_settings,
+	.setting_sz = ARRAY_SIZE(idual_mic_endfire_skt_settings),
+};
+
+static struct snddev_icodec_data snddev_idual_mic_endfire_skt_data = {
 	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
-	.name = "handset_dual_mic_endfire_tx_real_stereo",
+	.name = "handset_dual_mic_endfire_skt_tx",
 	.copp_id = 0,
-	.acdb_id = PSEUDO_ACDB_ID,
-	.profile = &idual_mic_endfire_profile,
+	.acdb_id = ACDB_ID_HANDSET_MIC_ENDFIRE_SKT,
+	.profile = &idual_mic_endfire_skt_profile,
+	.channel_mode = 2,
+	.default_sample_rate = 48000,
+	.pmctl_id = idual_mic_endfire_pmctl_id,
+	.pmctl_id_sz = ARRAY_SIZE(idual_mic_endfire_pmctl_id),
+	.pamp_on = NULL,
+	.pamp_off = NULL,
+};
+
+static struct platform_device msm_idual_mic_endfire_skt_device = {
+	.name = "snddev_icodec",
+	.id = 45,
+	.dev = { .platform_data = &snddev_idual_mic_endfire_skt_data },
+};
+
+static struct adie_codec_action_unit idual_mic_endfire_vzw_8KHz_osr256_actions[] =
+	MIC1_LEFT_AUX_IN_RIGHT_VZW_8000_OSR_256;
+
+static struct adie_codec_hwsetting_entry idual_mic_endfire_vzw_settings[] = {
+	{
+		.freq_plan = 8000,
+		.osr = 256,
+		.actions = idual_mic_endfire_vzw_8KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(idual_mic_endfire_vzw_8KHz_osr256_actions),
+	}, /* 8KHz profile can be used for 16KHz */
+	{
+		.freq_plan = 16000,
+		.osr = 256,
+		.actions = idual_mic_endfire_vzw_8KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(idual_mic_endfire_vzw_8KHz_osr256_actions),
+	}, /* 8KHz profile can be used for 48KHz */
+	{
+		.freq_plan = 48000,
+		.osr = 256,
+		.actions = idual_mic_endfire_vzw_8KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(idual_mic_endfire_vzw_8KHz_osr256_actions),
+	}
+};
+
+static struct adie_codec_dev_profile idual_mic_endfire_vzw_profile = {
+	.path_type = ADIE_CODEC_TX,
+	.settings = idual_mic_endfire_vzw_settings,
+	.setting_sz = ARRAY_SIZE(idual_mic_endfire_vzw_settings),
+};
+
+static struct snddev_icodec_data snddev_idual_mic_endfire_vzw_data = {
+	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
+	.name = "handset_dual_mic_endfire_vzw_tx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_HANDSET_MIC_ENDFIRE_VZW,
+	.profile = &idual_mic_endfire_vzw_profile,
+	.channel_mode = 2,
+	.default_sample_rate = 48000,
+	.pmctl_id = idual_mic_endfire_pmctl_id,
+	.pmctl_id_sz = ARRAY_SIZE(idual_mic_endfire_pmctl_id),
+	.pamp_on = NULL,
+	.pamp_off = NULL,
+};
+
+static struct platform_device msm_idual_mic_endfire_vzw_device = {
+	.name = "snddev_icodec",
+	.id = 48,
+	.dev = { .platform_data = &snddev_idual_mic_endfire_vzw_data },
+};
+
+static struct adie_codec_action_unit ispk_dual_mic_ef_real_stereo_actions[] =
+	ANALOG_DUAL_MIC;
+
+static struct adie_codec_hwsetting_entry ispk_dual_mic_ef_real_stereo_settings[] = {
+	{
+		.freq_plan = 8000,
+		.osr = 256,
+		.actions = ispk_dual_mic_ef_real_stereo_actions,
+		.action_sz = ARRAY_SIZE(ispk_dual_mic_ef_real_stereo_actions),
+	}, /* 8KHz profile can be used for 16Khz */
+	{
+		.freq_plan = 16000,
+		.osr = 256,
+		.actions = ispk_dual_mic_ef_real_stereo_actions,
+		.action_sz = ARRAY_SIZE(ispk_dual_mic_ef_real_stereo_actions),
+	}, /* 8KHz profile can be used for 48KHz */
+	{
+		.freq_plan = 48000,
+		.osr = 256,
+		.actions = ispk_dual_mic_ef_real_stereo_actions,
+		.action_sz = ARRAY_SIZE(ispk_dual_mic_ef_real_stereo_actions),
+	},
+};
+
+static struct adie_codec_dev_profile ispk_dual_mic_ef_real_stereo_profile = {
+	.path_type = ADIE_CODEC_TX,
+	.settings = ispk_dual_mic_ef_real_stereo_settings,
+	.setting_sz = ARRAY_SIZE(ispk_dual_mic_ef_real_stereo_settings),
+};
+
+static struct snddev_icodec_data snddev_spk_idual_mic_endfire_real_stereo_data = {
+	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
+	.name = "speaker_dual_mic_endfire_tx_real_stereo",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_SPKR_PHONE_MIC_ENDFIRE,
+	.profile = &ispk_dual_mic_ef_real_stereo_profile,
 	.channel_mode = REAL_STEREO_CHANNEL_MODE,
 	.default_sample_rate = 48000,
 	.pmctl_id = idual_mic_endfire_pmctl_id,
@@ -699,9 +1018,9 @@ static struct snddev_icodec_data\
 
 static struct platform_device msm_real_stereo_tx_device = {
 	.name = "snddev_icodec",
-	.id = 26,
+	.id = 36,
 	.dev = { .platform_data =
-			&snddev_idual_mic_endfire_real_stereo_data },
+	&snddev_spk_idual_mic_endfire_real_stereo_data },
 };
 
 static struct adie_codec_action_unit idual_mic_bs_8KHz_osr256_actions[] =
@@ -759,7 +1078,7 @@ static struct platform_device msm_idual_mic_broadside_device = {
 };
 
 static struct adie_codec_action_unit ispk_dual_mic_ef_8KHz_osr256_actions[] =
-	SPEAKER_MIC1_LEFT_LINE_IN_RIGHT_8000_OSR_256;
+	SPEAKER_MIC1_LEFT_AUX_IN_RIGHT_8000_OSR_256;
 
 static struct adie_codec_hwsetting_entry ispk_dual_mic_ef_settings[] = {
 	{
@@ -909,13 +1228,13 @@ static struct platform_device msm_itty_hs_mono_tx_device = {
 };
 
 static struct adie_codec_action_unit itty_hs_mono_rx_8KHz_osr256_actions[] =
-	TTY_HEADSET_MONO_RX_CLASS_D_8000_OSR_256;
+	TTY_HEADSET_RX_CAPLESS_8000_OSR_256;
 
 static struct adie_codec_action_unit itty_hs_mono_rx_16KHz_osr256_actions[] =
-	TTY_HEADSET_MONO_RX_CLASS_D_16000_OSR_256;
+	TTY_HEADSET_RX_CAPLESS_8000_OSR_256;
 
 static struct adie_codec_action_unit itty_hs_mono_rx_48KHz_osr256_actions[] =
-	TTY_HEADSET_MONO_RX_CLASS_D_48000_OSR_256;
+	TTY_HEADSET_RX_CAPLESS_8000_OSR_256;
 
 static struct adie_codec_hwsetting_entry itty_hs_mono_rx_settings[] = {
 	{
@@ -954,6 +1273,8 @@ static struct snddev_icodec_data snddev_itty_hs_mono_rx_data = {
 	.default_sample_rate = 48000,
 	.pamp_on = NULL,
 	.pamp_off = NULL,
+	.voltage_on = msm_snddev_hsed_voltage_on,
+	.voltage_off = msm_snddev_hsed_voltage_off,
 	.max_voice_rx_vol[VOC_NB_INDEX] = 0,
 	.min_voice_rx_vol[VOC_NB_INDEX] = 0,
 	.max_voice_rx_vol[VOC_WB_INDEX] = 0,
@@ -1360,6 +1681,550 @@ static struct platform_device msm_uplink_rx_device = {
 	.dev = { .platform_data = &snddev_uplink_rx_data },
 };
 
+static struct adie_codec_action_unit ispeaker_mono_rx_48KHz_osr256_actions[] =
+	SPEAKER_RX_48000_OSR_256;
+
+static struct adie_codec_hwsetting_entry ispeaker_mono_rx_settings[] = {
+	{
+		.freq_plan = 48000,
+		.osr = 256,
+		.actions = ispeaker_mono_rx_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(ispeaker_mono_rx_48KHz_osr256_actions),
+	}
+};
+
+static struct adie_codec_dev_profile ispeaker_mono_rx_profile = {
+	.path_type = ADIE_CODEC_RX,
+	.settings = ispeaker_mono_rx_settings,
+	.setting_sz = ARRAY_SIZE(ispeaker_mono_rx_settings),
+};
+
+static struct snddev_icodec_data snddev_ispeaker_mono_rx_data = {
+	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
+	.name = "speaker_mono_rx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_SPKR_PHONE_MONO,
+	.profile = &ispeaker_mono_rx_profile,
+	.channel_mode = 1,
+	.pmctl_id = NULL,
+	.pmctl_id_sz = 0,
+	.default_sample_rate = 48000,
+	.pamp_on = &msm_snddev_poweramp_on,
+	.pamp_off = &msm_snddev_poweramp_off,
+	.max_voice_rx_vol[VOC_NB_INDEX] = 0,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -1500,
+	.max_voice_rx_vol[VOC_WB_INDEX] = 0,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -1500,
+};
+
+static struct platform_device msm_ispeaker_mono_rx_device = {
+	.name = "snddev_icodec",
+	.id = 26,
+	.dev = { .platform_data = &snddev_ispeaker_mono_rx_data },
+};
+
+static struct adie_codec_action_unit ihs_speaker_mono_rx_48KHz_osr256_actions[] =
+	HEADSET_MONO_SPEAKER_MONO_RX_CAPLESS_48000_OSR_256;
+
+static struct adie_codec_hwsetting_entry ihs_speaker_mono_rx_settings[] = {
+	{
+		.freq_plan = 48000,
+		.osr = 256,
+		.actions = ihs_speaker_mono_rx_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(ihs_speaker_mono_rx_48KHz_osr256_actions),
+	}
+};
+
+static struct adie_codec_dev_profile ihs_speaker_mono_rx_profile = {
+	.path_type = ADIE_CODEC_RX,
+	.settings = ihs_speaker_mono_rx_settings,
+	.setting_sz = ARRAY_SIZE(ihs_speaker_mono_rx_settings),
+};
+
+static struct snddev_icodec_data snddev_ihs_speaker_mono_rx_data = {
+	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
+	.name = "headset_speaker_mono_rx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_HEADSET_MONO_PLUS_SPKR_MONO_RX,
+	.profile = &ihs_speaker_mono_rx_profile,
+	.channel_mode = 1,
+	.pmctl_id = NULL,
+	.pmctl_id_sz = 0,
+	.default_sample_rate = 48000,
+	.pamp_on = &msm_snddev_poweramp_on,
+	.pamp_off = &msm_snddev_poweramp_off,
+	.voltage_on = &msm_snddev_hsed_voltage_on,
+	.voltage_off = &msm_snddev_hsed_voltage_off,
+	.max_voice_rx_vol[VOC_NB_INDEX] = 0,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -1500,
+	.max_voice_rx_vol[VOC_WB_INDEX] = 0,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -1500,
+};
+
+static struct platform_device msm_ihs_speaker_mono_rx_device = {
+	.name = "snddev_icodec",
+	.id = 27,
+	.dev = { .platform_data = &snddev_ihs_speaker_mono_rx_data },
+};
+
+static struct adie_codec_action_unit iringtone_speaker_stereo_rx_48KHz_osr256_actions[] =
+	SPEAKER_STEREO_RX_48000_OSR_256;
+
+static struct adie_codec_hwsetting_entry iringtone_speaker_stereo_rx_settings[] = {
+	{
+		.freq_plan = 48000,
+		.osr = 256,
+		.actions = iringtone_speaker_stereo_rx_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(iringtone_speaker_stereo_rx_48KHz_osr256_actions),
+	}
+};
+
+static struct adie_codec_dev_profile iringtone_speaker_stereo_rx_profile = {
+	.path_type = ADIE_CODEC_RX,
+	.settings = iringtone_speaker_stereo_rx_settings,
+	.setting_sz = ARRAY_SIZE(iringtone_speaker_stereo_rx_settings),
+};
+
+static struct snddev_icodec_data snddev_iringtone_speaker_stereo_rx_data = {
+	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
+	.name = "ringtone_speaker_stereo_rx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_SPKR_PHONE_RINGTONE_STEREO,
+	.profile = &iringtone_speaker_stereo_rx_profile,
+	.channel_mode = 2,
+	.default_sample_rate = 48000,
+	.pamp_on = &msm_snddev_poweramp_on,
+	.pamp_off = &msm_snddev_poweramp_off,
+	.max_voice_rx_vol[VOC_NB_INDEX] = 0,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -1500,
+	.max_voice_rx_vol[VOC_WB_INDEX] = 0,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -1500,
+};
+
+static struct platform_device msm_iringtone_speaker_stereo_rx_device = {
+	.name = "snddev_icodec",
+	.id = 30,
+	.dev = { .platform_data = &snddev_iringtone_speaker_stereo_rx_data },
+};
+
+static struct adie_codec_action_unit iringtone_speaker_mono_rx_48KHz_osr256_actions[] =
+	SPEAKER_RX_48000_OSR_256;
+
+static struct adie_codec_hwsetting_entry iringtone_speaker_mono_rx_settings[] = {
+	{
+		.freq_plan = 48000,
+		.osr = 256,
+		.actions = iringtone_speaker_mono_rx_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(iringtone_speaker_mono_rx_48KHz_osr256_actions),
+	}
+};
+
+static struct adie_codec_dev_profile iringtone_speaker_mono_rx_profile = {
+	.path_type = ADIE_CODEC_RX,
+	.settings = iringtone_speaker_mono_rx_settings,
+	.setting_sz = ARRAY_SIZE(iringtone_speaker_mono_rx_settings),
+};
+
+static struct snddev_icodec_data snddev_iringtone_speaker_mono_rx_data = {
+	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
+	.name = "ringtone_speaker_mono_rx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_SPKR_PHONE_RINGTONE_MONO,
+	.profile = &iringtone_speaker_mono_rx_profile,
+	.channel_mode = 1,
+	.default_sample_rate = 48000,
+	.pamp_on = &msm_snddev_poweramp_on,
+	.pamp_off = &msm_snddev_poweramp_off,
+	.max_voice_rx_vol[VOC_NB_INDEX] = 0,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -1500,
+	.max_voice_rx_vol[VOC_WB_INDEX] = 0,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -1500,
+};
+
+static struct platform_device msm_iringtone_speaker_mono_rx_device = {
+	.name = "snddev_icodec",
+	.id = 31,
+	.dev = { .platform_data = &snddev_iringtone_speaker_mono_rx_data },
+};
+
+static struct adie_codec_action_unit iringtone_headset_plus_spkr_stereo_rx_48KHz_osr256_actions[] =
+	HEADSET_STEREO_SPEAKER_STEREO_RX_CAPLESS_48000_OSR_256;
+
+static struct adie_codec_hwsetting_entry iringtone_headset_plus_spkr_stereo_rx_settings[] = {
+	{
+		.freq_plan = 48000,
+		.osr = 256,
+		.actions = iringtone_headset_plus_spkr_stereo_rx_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(iringtone_headset_plus_spkr_stereo_rx_48KHz_osr256_actions),
+	}
+};
+
+static struct adie_codec_dev_profile iringtone_headset_plus_spkr_stereo_rx_profile = {
+	.path_type = ADIE_CODEC_RX,
+	.settings = iringtone_headset_plus_spkr_stereo_rx_settings,
+	.setting_sz = ARRAY_SIZE(iringtone_headset_plus_spkr_stereo_rx_settings),
+};
+
+static struct snddev_icodec_data snddev_iringtone_headset_plus_spkr_stereo_rx_data = {
+	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
+	.name = "ringtone_headset_plus_spkr_stereo_rx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_HEADSET_STEREO_PLUS_SPKR_RINGTONE_STEREO_RX,
+	.profile = &iringtone_headset_plus_spkr_stereo_rx_profile,
+	.channel_mode = 2,
+	.default_sample_rate = 48000,
+	.pamp_on = msm_snddev_poweramp_on,
+	.pamp_off = msm_snddev_poweramp_off,
+	.voltage_on = msm_snddev_hsed_voltage_on,
+	.voltage_off = msm_snddev_hsed_voltage_off,
+	.max_voice_rx_vol[VOC_NB_INDEX] = -500,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -2000,
+	.max_voice_rx_vol[VOC_WB_INDEX] = -500,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2000,
+};
+
+static struct platform_device msm_iringtone_headset_plus_spkr_stereo_rx_device = {
+	.name = "snddev_icodec",
+	.id = 32,
+	.dev = { .platform_data = &snddev_iringtone_headset_plus_spkr_stereo_rx_data },
+};
+
+static struct adie_codec_action_unit iringtone_headset_plus_spkr_mono_rx_48KHz_osr256_actions[] =
+	HEADSET_MONO_SPEAKER_MONO_RX_CAPLESS_48000_OSR_256;
+
+static struct adie_codec_hwsetting_entry iringtone_headset_plus_spkr_mono_rx_settings[] = {
+	{
+		.freq_plan = 48000,
+		.osr = 256,
+		.actions = iringtone_headset_plus_spkr_mono_rx_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(iringtone_headset_plus_spkr_mono_rx_48KHz_osr256_actions),
+	}
+};
+
+static struct adie_codec_dev_profile iringtone_headset_plus_spkr_mono_rx_profile = {
+	.path_type = ADIE_CODEC_RX,
+	.settings = iringtone_headset_plus_spkr_mono_rx_settings,
+	.setting_sz = ARRAY_SIZE(iringtone_headset_plus_spkr_mono_rx_settings),
+};
+
+static struct snddev_icodec_data snddev_iringtone_headset_plus_spkr_mono_rx_data = {
+	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
+	.name = "ringtone_headset_plus_spkr_mono_rx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_HEADSET_MONO_PLUS_SPKR_RINGTONE_MONO_RX,
+	.profile = &iringtone_headset_plus_spkr_mono_rx_profile,
+	.channel_mode = 1,
+	.default_sample_rate = 48000,
+	.pamp_on = msm_snddev_poweramp_on,
+	.pamp_off = msm_snddev_poweramp_off,
+	.voltage_on = msm_snddev_hsed_voltage_on,
+	.voltage_off = msm_snddev_hsed_voltage_off,
+	.max_voice_rx_vol[VOC_NB_INDEX] = -500,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -2000,
+	.max_voice_rx_vol[VOC_WB_INDEX] = -500,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2000,
+};
+
+static struct platform_device msm_iringtone_headset_plus_spkr_mono_rx_device = {
+	.name = "snddev_icodec",
+	.id = 33,
+	.dev = { .platform_data = &snddev_iringtone_headset_plus_spkr_mono_rx_data },
+};
+
+static struct snddev_ecodec_data snddev_bt_carkit_rx_data = {
+	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
+	.name = "bt_carkit_rx",
+	.copp_id = 1,
+	.acdb_id = ACDB_ID_BT_SCO_HFP_SPKR,
+	.channel_mode = 1,
+	.conf_pcm_ctl_val = BT_SCO_PCM_CTL_VAL,
+	.conf_aux_codec_intf = BT_SCO_AUX_CODEC_INTF,
+	.conf_data_format_padding_val = BT_SCO_DATA_FORMAT_PADDING,
+	.max_voice_rx_vol[VOC_NB_INDEX] = 0,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -1100,
+	.max_voice_rx_vol[VOC_WB_INDEX] = 0,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -1100,
+};
+
+static struct snddev_ecodec_data snddev_bt_carkit_tx_data = {
+	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
+	.name = "bt_carkit_tx",
+	.copp_id = 1,
+	.acdb_id = ACDB_ID_BT_SCO_HFP_MIC,
+	.channel_mode = 1,
+	.conf_pcm_ctl_val = BT_SCO_PCM_CTL_VAL,
+	.conf_aux_codec_intf = BT_SCO_AUX_CODEC_INTF,
+	.conf_data_format_padding_val = BT_SCO_DATA_FORMAT_PADDING,
+};
+
+struct platform_device msm_bt_carkit_rx_device = {
+	.name = "msm_snddev_ecodec",
+	.id = 2,
+	.dev = { .platform_data = &snddev_bt_carkit_rx_data },
+};
+
+struct platform_device msm_bt_carkit_tx_device = {
+	.name = "msm_snddev_ecodec",
+	.id = 3,
+	.dev = { .platform_data = &snddev_bt_carkit_tx_data },
+};
+
+static struct snddev_ecodec_data snddev_bt_dsp_sco_rx_data = {
+	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
+	.name = "bt_dsp_sco_rx",
+	.copp_id = 1,
+	.acdb_id = ACDB_ID_BT_DSP_SCO_SPKR,
+	.channel_mode = 1,
+	.conf_pcm_ctl_val = BT_SCO_PCM_CTL_VAL,
+	.conf_aux_codec_intf = BT_SCO_AUX_CODEC_INTF,
+	.conf_data_format_padding_val = BT_SCO_DATA_FORMAT_PADDING,
+	.max_voice_rx_vol[VOC_NB_INDEX] = 0,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -1100,
+	.max_voice_rx_vol[VOC_WB_INDEX] = 0,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -1100,
+};
+
+static struct snddev_ecodec_data snddev_bt_dsp_sco_tx_data = {
+	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
+	.name = "bt_dsp_sco_tx",
+	.copp_id = 1,
+	.acdb_id = ACDB_ID_BT_DSP_SCO_MIC,
+	.channel_mode = 1,
+	.conf_pcm_ctl_val = BT_SCO_PCM_CTL_VAL,
+	.conf_aux_codec_intf = BT_SCO_AUX_CODEC_INTF,
+	.conf_data_format_padding_val = BT_SCO_DATA_FORMAT_PADDING,
+};
+
+struct platform_device msm_bt_dsp_sco_rx_device = {
+	.name = "msm_snddev_ecodec",
+	.id = 4,
+	.dev = { .platform_data = &snddev_bt_dsp_sco_rx_data },
+};
+
+struct platform_device msm_bt_dsp_sco_tx_device = {
+	.name = "msm_snddev_ecodec",
+	.id = 5,
+	.dev = { .platform_data = &snddev_bt_dsp_sco_tx_data },
+};
+
+static struct adie_codec_action_unit ihandset_spkr_hac_rx_48KHz_osr256_actions[] =
+	HANDSET_RX_48000_OSR_256;
+
+static struct adie_codec_hwsetting_entry ihandset_spkr_hac_rx_settings[] = {
+	{
+		.freq_plan = 48000,
+		.osr = 256,
+		.actions = ihandset_spkr_hac_rx_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(ihandset_spkr_hac_rx_48KHz_osr256_actions),
+	}
+};
+
+static struct adie_codec_dev_profile ihandset_spkr_hac_rx_profile = {
+	.path_type = ADIE_CODEC_RX,
+	.settings = ihandset_spkr_hac_rx_settings,
+	.setting_sz = ARRAY_SIZE(ihandset_spkr_hac_rx_settings),
+};
+
+static struct snddev_icodec_data snddev_ihandset_spkr_hac_rx_data = {
+	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
+	.name = "handset_spkr_hac_rx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_HANDSET_SPKR_HAC,
+	.profile = &ihandset_spkr_hac_rx_profile,
+	.channel_mode = 1,
+	.default_sample_rate = 48000,
+	.pamp_on = msm_hac_amp_on,
+	.pamp_off = msm_hac_amp_off,
+	.voltage_on = NULL,
+	.voltage_off = NULL,
+	.max_voice_rx_vol[VOC_NB_INDEX] = -200,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -2200,
+	.max_voice_rx_vol[VOC_WB_INDEX] = -200,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2200
+};
+
+static struct platform_device msm_ihandset_spkr_hac_rx_device = {
+	.name = "snddev_icodec",
+	.id = 29,
+	.dev = { .platform_data = &snddev_ihandset_spkr_hac_rx_data },
+};
+
+static struct adie_codec_action_unit iheadphone_mic_tx_48KHz_osr256_actions[] =
+	SPEAKER_TX_48000_OSR_256;
+
+static struct adie_codec_hwsetting_entry iheadphone_mic_tx_settings[] = {
+	{
+		.freq_plan = 48000,
+		.osr = 256,
+		.actions = iheadphone_mic_tx_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(iheadphone_mic_tx_48KHz_osr256_actions),
+	}
+};
+
+static struct adie_codec_dev_profile iheadphone_mic_tx_profile = {
+	.path_type = ADIE_CODEC_TX,
+	.settings = iheadphone_mic_tx_settings,
+	.setting_sz = ARRAY_SIZE(iheadphone_mic_tx_settings),
+};
+
+static struct snddev_icodec_data snddev_iheadphone_mic_tx_data = {
+	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
+	.name = "headphone_mic_tx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_HEADPHONE_MIC,
+	.profile = &iheadphone_mic_tx_profile,
+	.channel_mode = 1,
+	.default_sample_rate = 48000,
+	.pmctl_id = imic_pmctl_id,
+	.pmctl_id_sz = ARRAY_SIZE(imic_pmctl_id),
+	.pamp_on = NULL,
+	.pamp_off = NULL,
+};
+
+static struct platform_device msm_iheadphone_mic_tx_device = {
+	.name = "snddev_icodec",
+	.id = 34,
+	.dev = { .platform_data = &snddev_iheadphone_mic_tx_data },
+};
+
+static struct adie_codec_action_unit iheadphone_mic_endfire_tx_8KHz_osr256_actions[] =
+	SPEAKER_MIC1_LEFT_AUX_IN_RIGHT_8000_OSR_256;
+
+static struct adie_codec_hwsetting_entry iheadphone_mic_endfire_tx_settings[] = {
+	{
+		.freq_plan = 8000,
+		.osr = 256,
+		.actions = iheadphone_mic_endfire_tx_8KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(iheadphone_mic_endfire_tx_8KHz_osr256_actions),
+	}, /* 8KHz profile can be used for 16Khz */
+	{
+		.freq_plan = 16000,
+		.osr = 256,
+		.actions = iheadphone_mic_endfire_tx_8KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(iheadphone_mic_endfire_tx_8KHz_osr256_actions),
+	}, /* 8KHz profile can be used for 48KHz */
+	{
+		.freq_plan = 48000,
+		.osr = 256,
+		.actions = iheadphone_mic_endfire_tx_8KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(iheadphone_mic_endfire_tx_8KHz_osr256_actions),
+	},
+};
+
+static struct adie_codec_dev_profile iheadphone_mic_endfire_tx_profile = {
+	.path_type = ADIE_CODEC_TX,
+	.settings = iheadphone_mic_endfire_tx_settings,
+	.setting_sz = ARRAY_SIZE(iheadphone_mic_endfire_tx_settings),
+};
+
+static struct snddev_icodec_data snddev_iheadphone_mic_endfire_tx_data = {
+	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
+	.name = "headphone_mic_endfire_tx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_HEADPHONE_MIC_ENDFIRE,
+	.profile = &iheadphone_mic_endfire_tx_profile,
+	.channel_mode = 2,
+	.default_sample_rate = 48000,
+	.pmctl_id = idual_mic_endfire_pmctl_id,
+	.pmctl_id_sz = ARRAY_SIZE(idual_mic_endfire_pmctl_id),
+	.pamp_on = NULL,
+	.pamp_off = NULL,
+};
+
+static struct platform_device msm_iheadphone_mic_endfire_tx_device = {
+	.name = "snddev_icodec",
+	.id = 35,
+	.dev = { .platform_data = &snddev_iheadphone_mic_endfire_tx_data },
+};
+
+static struct adie_codec_action_unit ispeaker_secondary_mic_tx_actions[] =
+	SECONDARY_MIC_48000_OSR_256;
+
+static struct adie_codec_hwsetting_entry ispeaker_secondary_mic_tx_settings[] = {
+	{
+		.freq_plan = 48000,
+		.osr = 256,
+		.actions = ispeaker_secondary_mic_tx_actions,
+		.action_sz = ARRAY_SIZE(ispeaker_secondary_mic_tx_actions),
+	}
+};
+
+static struct adie_codec_dev_profile ispeaker_secondary_mic_tx_profile = {
+	.path_type = ADIE_CODEC_TX,
+	.settings = ispeaker_secondary_mic_tx_settings,
+	.setting_sz = ARRAY_SIZE(ispeaker_secondary_mic_tx_settings),
+};
+
+static struct snddev_icodec_data snddev_ispeaker_secondary_mic_tx_data = {
+	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
+	.name = "speaker_secondary_mic_tx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_SPKR_PHONE_MIC,
+	.profile = &ispeaker_secondary_mic_tx_profile,
+	.channel_mode = 1,
+	.default_sample_rate = 48000,
+	.pmctl_id = imic_pmctl_id,
+	.pmctl_id_sz = ARRAY_SIZE(imic_pmctl_id),
+	.pamp_on = NULL,
+	.pamp_off = NULL,
+};
+
+static struct platform_device msm_ispeaker_secondary_mic_tx_device = {
+	.name = "snddev_icodec",
+	.id = 42,
+	.dev = { .platform_data = &snddev_ispeaker_secondary_mic_tx_data },
+};
+
+static struct adie_codec_action_unit imic_asr_48KHz_osr256_actions[] =
+	HANDSET_TX_ASR_48000_OSR_256;
+
+static struct adie_codec_hwsetting_entry imic_asr_settings[] = {
+	{
+		.freq_plan = 8000,
+		.osr = 256,
+		.actions = imic_asr_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(imic_asr_48KHz_osr256_actions),
+	},
+	{
+		.freq_plan = 16000,
+		.osr = 256,
+		.actions = imic_asr_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(imic_asr_48KHz_osr256_actions),
+	},
+	{
+		.freq_plan = 48000,
+		.osr = 256,
+		.actions = imic_asr_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(imic_asr_48KHz_osr256_actions),
+	}
+};
+
+static struct adie_codec_dev_profile imic_asr_profile = {
+	.path_type = ADIE_CODEC_TX,
+	.settings = imic_asr_settings,
+	.setting_sz = ARRAY_SIZE(imic_asr_settings),
+};
+
+static struct snddev_icodec_data snddev_imic_asr_data = {
+	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
+	.name = "handset_asr_tx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_HANDSET_MIC,
+	.profile = &imic_asr_profile,
+	.channel_mode = 1,
+	.pmctl_id = imic_pmctl_id,
+	.pmctl_id_sz = ARRAY_SIZE(imic_pmctl_id),
+	.default_sample_rate = 48000,
+	.pamp_on = NULL,
+	.pamp_off = NULL,
+};
+
+static struct platform_device msm_imic_asr_device = {
+	.name = "snddev_icodec",
+	.id = 49,
+	.dev = { .platform_data = &snddev_imic_asr_data },
+};
+
 static struct platform_device *snd_devices_ffa[] __initdata = {
 	&msm_iearpiece_ffa_device,
 	&msm_imic_ffa_device,
@@ -1427,6 +2292,64 @@ static struct platform_device *snd_devices_fluid[] __initdata = {
 	&msm_uplink_rx_device,
 	&msm_ifmradio_speaker_device,
 	&msm_ifmradio_headset_device,
+};
+
+/**
+ * This array should hold the list of devices used by ALL products
+ * and platforms.
+ *
+ * To add a new entry used a specific device or platform, it needs
+ * to be added at the end of this array, or existing devices will
+ * no longer work properly.
+ *
+ * Also, any power specific functions which are referred to from
+ * here, should be added to the different board-semc_*.c files.
+ *
+ */
+static struct platform_device *snd_devices_semc[] __initdata = {
+	&msm_iearpiece_device,
+	&msm_imic_device,
+	&msm_ihs_stereo_rx_device,
+	&msm_ihs_mono_rx_device,
+	&msm_ihs_mono_tx_device,
+	&msm_ifmradio_handset_device,
+	&msm_ispeaker_rx_device,
+	&msm_ifmradio_speaker_device,
+	&msm_ifmradio_headset_device,
+	&msm_idual_mic_endfire_device,
+	&msm_idual_mic_broadside_device,
+	&msm_spk_idual_mic_endfire_device,
+	&msm_ispeaker_tx_device,
+	&msm_itty_hs_mono_rx_device,
+	&msm_itty_hs_mono_tx_device,
+	&msm_bt_sco_earpiece_device,
+	&msm_bt_sco_mic_device,
+	&msm_ispeaker_mono_rx_device,
+	&msm_ihs_speaker_mono_rx_device,
+	&msm_iringtone_speaker_stereo_rx_device,
+	&msm_iringtone_speaker_mono_rx_device,
+	&msm_iringtone_headset_plus_spkr_stereo_rx_device,
+	&msm_iringtone_headset_plus_spkr_mono_rx_device,
+	&msm_bt_carkit_rx_device,
+	&msm_bt_carkit_tx_device,
+	&msm_bt_dsp_sco_rx_device,
+	&msm_bt_dsp_sco_tx_device,
+	&msm_ihandset_spkr_hac_rx_device,
+	&msm_iheadphone_mic_tx_device,
+	&msm_ihs_stereo_speaker_stereo_rx_device,
+	&msm_snddev_mi2s_stereo_rx_device,
+	&msm_snddev_mi2s_fm_tx_device,
+	&msm_iheadphone_mic_endfire_tx_device,
+	&msm_ispeaker_secondary_mic_tx_device,
+	&msm_real_stereo_tx_device,
+	&msm_iearpiece_skt_device,
+	&msm_imic_skt_device,
+	&msm_idual_mic_endfire_skt_device,
+	&msm_iearpiece_vzw_device,
+	&msm_imic_vzw_device,
+	&msm_idual_mic_endfire_vzw_device,
+	&msm_imic_asr_device,
+	/* Add new entries last, do not alter existing entries! */
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -1535,5 +2458,6 @@ void __init msm_snddev_init(void)
 		platform_add_devices(snd_devices_fluid,
 		ARRAY_SIZE(snd_devices_fluid));
 	else
-		pr_err("%s: Unknown machine type\n", __func__);
+		platform_add_devices(snd_devices_semc,
+		ARRAY_SIZE(snd_devices_semc));
 }

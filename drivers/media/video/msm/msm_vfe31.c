@@ -1,4 +1,5 @@
 /* Copyright (c) 2009 - 2010, Code Aurora Forum. All rights reserved.
+ * Copyright (C) 2010 Sony Ericsson Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,7 +21,9 @@
 #include <linux/interrupt.h>
 #include <mach/irqs.h>
 #include "msm_vfe31.h"
+#ifdef CONFIG_MSM_VPE
 #include "msm_vpe1.h"
+#endif
 #include <mach/camera.h>
 #include <linux/io.h>
 #include <mach/msm_reqs.h>
@@ -463,8 +466,9 @@ static void vfe31_release(struct platform_device *pdev)
 	vfemem = vfe31_ctrl->vfemem;
 	vfeio  = vfe31_ctrl->vfeio;
 
+#ifdef CONFIG_MSM_VPE
 	msm_vpe_release();
-
+#endif
 	kfree(vfe31_ctrl->extdata);
 	free_irq(vfe31_ctrl->vfeirq, 0);
 	iounmap(vfe31_ctrl->vfebase);
@@ -498,7 +502,10 @@ static int vfe31_config_axi(int mode, struct axidata *ad, uint32_t *ao)
 	case OUTPUT_2: {
 		if (ad->bufnum2 != 3)
 			return -EINVAL;
-		*p = 0x200;    /* preview with wm0 & wm1 */
+
+		/* set from user driver side start */
+		/* *p = 0x200;*/    /* preview with wm0 & wm1 */
+		/* set from user driver side end */
 
 		vfe31_ctrl->outpath.out0.ch0 = 0; /* luma   */
 		vfe31_ctrl->outpath.out0.ch1 = 1; /* chroma */
@@ -531,8 +538,10 @@ static int vfe31_config_axi(int mode, struct axidata *ad, uint32_t *ao)
 		if ((ad->bufnum1 < 1) || (ad->bufnum2 < 1))
 			return -EINVAL;
 		/* at least one frame for snapshot.  */
-		*p++ = 0x1;    /* xbar cfg0 */
-		*p = 0x203;    /* xbar cfg1 */
+		/* set from user driver side start */
+		/* *p++ = 0x1; */    /* xbar cfg0 */
+		/* *p = 0x203; */    /* xbar cfg1 */
+		/* set from user driver side end */
 		vfe31_ctrl->outpath.out0.ch0 = 0; /* thumbnail luma   */
 		vfe31_ctrl->outpath.out0.ch1 = 4; /* thumbnail chroma */
 		vfe31_ctrl->outpath.out1.ch0 = 1; /* main image luma   */
@@ -1894,7 +1903,6 @@ static int vfe31_config(struct msm_vfe_cfg_cmd *cmd, void *data)
 		kfree(axio);
 	}
 		break;
-
 	case CMD_AXI_CFG_SNAP: {
 		struct axidata *axid;
 		uint32_t *axio = NULL;
@@ -2019,6 +2027,7 @@ static void vfe31_process_reg_update_irq(void)
 			}
 		}
 		vfe31_ctrl->req_start_video_rec =  FALSE;
+#ifdef CONFIG_MSM_VPE
 		if (vpe_ctrl->dis_en) {
 			old_val = msm_io_r(
 				vfe31_ctrl->vfebase + VFE_MODULE_CFG);
@@ -2026,6 +2035,7 @@ static void vfe31_process_reg_update_irq(void)
 			msm_io_w(old_val,
 				vfe31_ctrl->vfebase + VFE_MODULE_CFG);
 		}
+#endif
 		CDBG("start video triggered .\n");
 	} else if (vfe31_ctrl->req_stop_video_rec) {
 		if (vfe31_ctrl->outpath.output_mode & VFE31_OUTPUT_MODE_V) {
@@ -2239,7 +2249,8 @@ static void vfe31_process_camif_sof_irq(void)
 	} /* if raw snapshot mode. */
 	vfe31_send_msg_no_payload(MSG_ID_SOF_ACK);
 	vfe31_ctrl->vfeFrameId++;
-	CDBG("camif_sof_irq, frameId = %d\n", vfe31_ctrl->vfeFrameId);
+	CDBG("camif_sof_irq, frameId = %d mode %d\n",
+		vfe31_ctrl->vfeFrameId, vfe31_ctrl->operation_mode);
 
 	if (vfe31_ctrl->sync_timer_state) {
 		if (vfe31_ctrl->sync_timer_repeat_count == 0)
@@ -3007,8 +3018,10 @@ static int vfe31_init(struct msm_vfe_callback *presp,
 		return rc;
 	/* Bring up all the required GPIOs and Clocks */
 	rc = msm_camio_enable(pdev);
+#ifdef CONFIG_MSM_VPE
 	if (msm_vpe_open() < 0)
 		CDBG("%s: vpe_open failed\n", __func__);
+#endif
 	return rc;
 }
 
@@ -3024,11 +3037,21 @@ void msm_camvfe_fn_init(struct msm_camvfe_fn *fptr, void *data)
 
 void msm_camvpe_fn_init(struct msm_camvpe_fn *fptr, void *data)
 {
+#ifdef CONFIG_MSM_VPE_STANDALONE
+	fptr->vpe_reg		= NULL;
+	fptr->send_frame_to_vpe	= NULL;
+	fptr->vpe_config	= NULL;
+	fptr->vpe_cfg_update	= NULL;
+	fptr->dis		= NULL;
+#else
 	fptr->vpe_reg		= msm_vpe_reg;
 	fptr->send_frame_to_vpe	= msm_send_frame_to_vpe;
 	fptr->vpe_config	= msm_vpe_config;
 	fptr->vpe_cfg_update	= msm_vpe_cfg_update;
 	fptr->dis		= &(vpe_ctrl->dis_en);
+#endif
+#ifdef CONFIG_MSM_VPE
 	vpe_ctrl->syncdata = data;
+#endif
 }
 

@@ -787,38 +787,46 @@ static int yaffs_writepage(struct page *page)
 #endif
 {
 	struct address_space *mapping = page->mapping;
-	loff_t offset = (loff_t) page->index << PAGE_CACHE_SHIFT;
 	struct inode *inode;
 	unsigned long end_index;
 	char *buffer;
 	yaffs_Object *obj;
 	int nWritten = 0;
 	unsigned nBytes;
+	loff_t i_size;
 
 	if (!mapping)
 		BUG();
 	inode = mapping->host;
 	if (!inode)
 		BUG();
+	i_size = i_size_read(inode);
 
-	if (offset > inode->i_size) {
+	end_index = i_size >> PAGE_CACHE_SHIFT;
+
+	if(page->index < end_index)
+		nBytes = PAGE_CACHE_SIZE;
+	else {
+		nBytes = i_size & (PAGE_CACHE_SIZE -1);
+
+		if (page->index > end_index || !nBytes) {
 		T(YAFFS_TRACE_OS,
 			("yaffs_writepage at %08x, inode size = %08x!!!\n",
 			(unsigned)(page->index << PAGE_CACHE_SHIFT),
 			(unsigned)inode->i_size));
 		T(YAFFS_TRACE_OS,
 			("                -> don't care!!\n"));
+
+			zero_user_segment(page,0,PAGE_CACHE_SIZE);
+			set_page_writeback(page);
 		unlock_page(page);
+			end_page_writeback(page);
 		return 0;
 	}
+	}
 
-	end_index = inode->i_size >> PAGE_CACHE_SHIFT;
-
-	/* easy case */
-	if (page->index < end_index)
-		nBytes = PAGE_CACHE_SIZE;
-	else
-		nBytes = inode->i_size & (PAGE_CACHE_SIZE - 1);
+	if(nBytes != PAGE_CACHE_SIZE)
+		zero_user_segment(page,nBytes,PAGE_CACHE_SIZE);
 
 	get_page(page);
 
@@ -844,8 +852,9 @@ static int yaffs_writepage(struct page *page)
 	yaffs_GrossUnlock(obj->myDev);
 
 	kunmap(page);
-	SetPageUptodate(page);
-	UnlockPage(page);
+	set_page_writeback(page);
+	unlock_page(page);
+	end_page_writeback(page);
 	put_page(page);
 
 	return (nWritten == nBytes) ? 0 : -ENOSPC;
@@ -859,8 +868,6 @@ static int yaffs_write_begin(struct file *filp, struct address_space *mapping,
 {
 	struct page *pg = NULL;
 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
-	uint32_t offset = pos & (PAGE_CACHE_SIZE - 1);
-	uint32_t to = offset + len;
 
 	int ret = 0;
 	int space_held = 0;
@@ -888,7 +895,7 @@ static int yaffs_write_begin(struct file *filp, struct address_space *mapping,
 
 	/* Update page if required */
 
-	if (!Page_Uptodate(pg) && (offset || to < PAGE_CACHE_SIZE))
+	if (!Page_Uptodate(pg))
 		ret = yaffs_readpage_nolock(filp, pg);
 
 	if (ret)
@@ -917,7 +924,7 @@ static int yaffs_prepare_write(struct file *f, struct page *pg,
 {
 	T(YAFFS_TRACE_OS, ("yaffs_prepair_write\n"));
 
-	if (!Page_Uptodate(pg) && (offset || to < PAGE_CACHE_SIZE))
+	if (!Page_Uptodate(pg))
 		return yaffs_readpage_nolock(f, pg);
 	return 0;
 }
@@ -947,9 +954,8 @@ static int yaffs_write_end(struct file *filp, struct address_space *mapping,
 			("yaffs_write_end not same size ret %d  copied %d\n",
 			ret, copied));
 		SetPageError(pg);
-		ClearPageUptodate(pg);
 	} else {
-		SetPageUptodate(pg);
+		/* Nothing */
 	}
 
 	kunmap(pg);
@@ -989,9 +995,8 @@ static int yaffs_commit_write(struct file *f, struct page *pg, unsigned offset,
 			("yaffs_commit_write not same size nWritten %d  nBytes %d\n",
 			nWritten, nBytes));
 		SetPageError(pg);
-		ClearPageUptodate(pg);
 	} else {
-		SetPageUptodate(pg);
+		/* Nothing */
 	}
 
 	kunmap(pg);
@@ -1645,17 +1650,23 @@ static int yaffs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	error = inode_change_ok(inode, attr);
 	if (error == 0) {
+		int result;
+		if (!error){
+			error = inode_setattr(inode, attr);
+			T(YAFFS_TRACE_OS,("inode_setattr called\n"));
+			if (attr->ia_valid & ATTR_SIZE)
+				truncate_inode_pages(&inode->i_data,attr->ia_size);
+		}
 		dev = yaffs_InodeToObject(inode)->myDev;
 		yaffs_GrossLock(dev);
-		if (yaffs_SetAttributes(yaffs_InodeToObject(inode), attr) ==
-				YAFFS_OK) {
+		result = yaffs_SetAttributes(yaffs_InodeToObject(inode), attr);
+		if(result == YAFFS_OK) {
 			error = 0;
 		} else {
 			error = -EPERM;
 		}
 		yaffs_GrossUnlock(dev);
-		if (!error)
-			error = inode_setattr(inode, attr);
+
 	}
 	return error;
 }

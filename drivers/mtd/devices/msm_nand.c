@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2007 Google, Inc.
  * Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (C) 2010 Sony Ericsson Mobile Communications AB.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -11,6 +12,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
+ * NOTE: This file has been modified by Sony Ericsson Mobile Communications AB.
+ * Modifications are licensed under the License.
  */
 
 #include <linux/kernel.h>
@@ -389,20 +392,42 @@ struct flash_identification {
 	uint32_t pagesize;
 	uint32_t blksize;
 	uint32_t oobsize;
+	uint32_t wr_rd_bsygap;
+	uint32_t recovery_cycles;
+	uint32_t second_bbmarker; /* Bad block marking also on second page */
 };
 
 static struct flash_identification supported_flash[] =
 {
-	/* Flash ID   ID Mask Density(MB)  Wid Pgsz   Blksz   oobsz    Manuf */
-	{0x00000000, 0xFFFFFFFF,         0, 0,    0,         0,  0, }, /*ONFI*/
-	{0x1500aaec, 0xFF00FFFF, (256<<20), 0, 2048, (2048<<6), 64, }, /*Sams*/
-	{0x5500baec, 0xFF00FFFF, (256<<20), 1, 2048, (2048<<6), 64, }, /*Sams*/
-	{0x6600bcec, 0xFF00FFFF, (512<<20), 1, 4096, (4096<<6), 128,}, /*Sams*/
-	{0x1500aa98, 0xFFFFFFFF, (256<<20), 0, 2048, (2048<<6), 64, }, /*Tosh*/
-	{0x5500ba98, 0xFFFFFFFF, (256<<20), 1, 2048, (2048<<6), 64, }, /*Tosh*/
-	{0xd580b12c, 0xFFFFFFFF, (128<<20), 1, 2048, (2048<<6), 64, }, /*Micr*/
-	{0x5580baad, 0xFFFFFFFF, (256<<20), 1, 2048, (2048<<6), 64, }, /*Hynx*/
-	{0x5510baad, 0xFFFFFFFF, (256<<20), 1, 2048, (2048<<6), 64, }, /*Hynx*/
+	/* Flash ID   ID Mask Density(MB)  Wid Pgsz   Blksz   oobsz
+			Bsy  Recov  2nd_bbm    Manuf */
+	{0x00000000, 0xFFFFFFFF,         0, 0,    0,         0,  0,
+			 2,     7,       0 }, /*ONFI*/
+	{0x1500aaec, 0xFF00FFFF, (256<<20), 0, 2048, (2048<<6), 64,
+			 2,     7,       1 }, /*Sams*/
+	{0x5500baec, 0xFF00FFFF, (256<<20), 1, 2048, (2048<<6), 64,
+			 2,     7,       1 }, /*Sams*/
+	{0x6600bcec, 0xFF00FFFF, (512<<20), 1, 4096, (4096<<6), 128,
+			 2,     7,       1 }, /*Sams*/
+	{0x1500aa98, 0xFFFFFFFF, (256<<20), 0, 2048, (2048<<6), 64,
+			 2,     7,       0 }, /*Tosh*/
+	{0x5500ba98, 0xFFFFFFFF, (256<<20), 1, 2048, (2048<<6), 64,
+			 2,     7,       0 }, /*Tosh*/
+	{0xd580b12c, 0xFFFFFFFF, (128<<20), 1, 2048, (2048<<6), 64,
+			 2,     7,       0 }, /*Micr*/
+	{0x5580baad, 0xFFFFFFFF, (256<<20), 1, 2048, (2048<<6), 64,
+			 2,     7,       0 }, /*Hynx*/
+	{0x5510baad, 0xFFFFFFFF, (256<<20), 1, 2048, (2048<<6), 64,
+			 2,     7,       0 }, /*Hynx*/
+	{0x55d1b32c, 0xFFFFFFFF, (1024<<20), 1, 2048, (2048<<6), 64,
+			 9,     6,       0 }, /*Micr*/
+	{0x5591b398, 0xFFFFFFFF, (1024<<20), 1, 2048, (2048<<6), 64,
+			 9,     6,       0 }, /*Tosh*/
+	{0x6600b398, 0x7F00FFFF, (1024<<20), 1, 4096, (4096<<6), 128,
+			 9,     6,       0 }, /*Tosh*/
+	{0x6600b3ec, 0xFF00FFFF, (1024<<20), 1, 4096, (4096<<6), 128,
+			 9,     6,       1 }, /*Sams*/
+
 	/* Note: Width flag is 0 for 8 bit Flash and 1 for 16 bit flash      */
 	/* Note: The First row will be filled at runtime during ONFI probe   */
 };
@@ -501,6 +526,7 @@ uint32_t flash_onfi_probe(struct msm_nand_chip *chip)
 	dma_addr_t dma_addr_identifier = 0;
 	unsigned cmd_set_count = 2;
 	unsigned crc_chk_count = 0;
+	uint8_t index;
 
 	if (msm_nand_data.nr_parts) {
 		page_address = ((msm_nand_data.parts[0]).offset << 6);
@@ -716,7 +742,24 @@ uint32_t flash_onfi_probe(struct msm_nand_chip *chip)
 				supported_flash[0].density  =
 					onfi_param_page_ptr->
 					number_of_blocks_per_logical_unit
+					* onfi_param_page_ptr->
+					number_of_logical_units
 					* supported_flash[0].blksize;
+
+				for (index = 1; index < ARRAY_SIZE(supported_flash); index++) {
+					if ((supported_flash[0].flash_id &
+						  supported_flash[index].mask) ==
+						(supported_flash[index].flash_id &
+						  supported_flash[index].mask)){
+						supported_flash[0].wr_rd_bsygap =
+							supported_flash[index].wr_rd_bsygap;
+						supported_flash[0].recovery_cycles =
+							supported_flash[index].recovery_cycles;
+						supported_flash[0].second_bbmarker =
+							supported_flash[index].second_bbmarker;
+						break;
+					}
+				}
 
 				pr_info("ONFI probe : Found an ONFI "
 					"compliant device %s\n",
@@ -1835,7 +1878,7 @@ static int msm_nand_read_oob_dualnandc(struct mtd_info *mtd, loff_t from,
 					total_ecc_errors += ecc_errors;
 					/* not thread safe */
 					mtd->ecc_stats.corrected += ecc_errors;
-					if (ecc_errors > 1)
+					if (ecc_errors > 2)
 						pageerr = -EUCLEAN;
 				}
 			}
@@ -3231,7 +3274,7 @@ msm_nand_erase_dualnandc(struct mtd_info *mtd, struct erase_info *instr)
 }
 
 static int
-msm_nand_block_isbad(struct mtd_info *mtd, loff_t ofs)
+msm_nand_block_isbad_singlenandc(struct mtd_info *mtd, loff_t ofs)
 {
 	struct msm_nand_chip *chip = mtd->priv;
 	int ret;
@@ -3265,15 +3308,6 @@ msm_nand_block_isbad(struct mtd_info *mtd, loff_t ofs)
 		page = ofs >> 12;
 
 	cwperpage = (mtd->writesize >> 9);
-
-	/* Check for invalid offset */
-	if (ofs > mtd->size)
-		return -EINVAL;
-	if (ofs & (mtd->erasesize - 1)) {
-		pr_err("%s: unsupported block address, 0x%x\n",
-			 __func__, (uint32_t)ofs);
-		return -EINVAL;
-	}
 
 	wait_event(chip->wait_queue,
 		(dma_buffer = msm_nand_get_dma_buffer(chip ,
@@ -3416,15 +3450,6 @@ msm_nand_block_isbad_dualnandc(struct mtd_info *mtd, loff_t ofs)
 		page = (ofs >> 1) >> 12;
 
 	cwperpage = ((mtd->writesize >> 1) >> 9);
-
-	/* Check for invalid offset */
-	if (ofs > mtd->size)
-		return -EINVAL;
-	if (ofs & (mtd->erasesize - 1)) {
-		pr_err("%s: unsupported block address, 0x%x\n",
-			 __func__, (uint32_t)ofs);
-		return -EINVAL;
-	}
 
 	wait_event(chip->wait_queue,
 		(dma_buffer = msm_nand_get_dma_buffer(chip ,
@@ -3634,6 +3659,7 @@ msm_nand_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	struct mtd_oob_ops ops;
 	int ret;
 	uint8_t *buf;
+	loff_t max_ofs;
 
 	/* Check for invalid offset */
 	if (ofs > mtd->size)
@@ -3644,22 +3670,65 @@ msm_nand_block_markbad(struct mtd_info *mtd, loff_t ofs)
 		return -EINVAL;
 	}
 
+	ret = 0;
+	if (mtd->second_bbmarker)
+		max_ofs = ofs + mtd->writesize;
+	else
+		max_ofs = ofs;
+
 	/*
-	Write all 0s to the first page
+	Write all 0s to the first page (and second if two markers).
 	This will set the BB marker to 0
 	*/
-	buf = page_address(ZERO_PAGE());
+	for (; ofs <= max_ofs && ret >= 0; ofs += mtd->writesize) {
+		buf = page_address(ZERO_PAGE());
 
-	ops.mode = MTD_OOB_RAW;
-	ops.len = mtd->writesize + mtd->oobsize;
-	ops.retlen = 0;
-	ops.ooblen = 0;
-	ops.datbuf = buf;
-	ops.oobbuf = NULL;
-	if (!interleave_enable)
-		ret =  msm_nand_write_oob(mtd, ofs, &ops);
+		ops.mode = MTD_OOB_RAW;
+		ops.len = mtd->writesize + mtd->oobsize;
+		ops.retlen = 0;
+		ops.ooblen = 0;
+		ops.oobretlen = 0;
+		ops.ooboffs = 0;
+		ops.datbuf = buf;
+		ops.oobbuf = NULL;
+		if (!interleave_enable)
+			ret =  msm_nand_write_oob(mtd, ofs, &ops);
+		else
+			ret = msm_nand_write_oob_dualnandc(mtd, ofs, &ops);
+	}
+
+	return ret;
+}
+
+static int
+msm_nand_block_isbad(struct mtd_info *mtd, loff_t ofs)
+{
+	int ret;
+	loff_t max_ofs;
+
+	/* Check for invalid offset */
+	if (ofs > mtd->size)
+		return -EINVAL;
+	if (ofs & (mtd->erasesize - 1)) {
+		pr_err("%s: unsupported block address, 0x%x\n",
+			__func__, (uint32_t)ofs);
+		return -EINVAL;
+	}
+
+	ret = 0;
+	if (mtd->second_bbmarker)
+		max_ofs = ofs + mtd->writesize;
 	else
-		ret = msm_nand_write_oob_dualnandc(mtd, ofs, &ops);
+		max_ofs = ofs;
+
+	/* Check if first page (or second if two markers) have bad block
+	* marking. */
+	for (; ofs <= max_ofs && ret == 0; ofs += mtd->writesize) {
+		if (dual_nand_ctlr_present && interleave_enable)
+			ret = msm_nand_block_isbad_dualnandc(mtd, ofs);
+		else
+			ret = msm_nand_block_isbad_singlenandc(mtd, ofs);
+	}
 
 	return ret;
 }
@@ -6561,6 +6630,8 @@ int msm_nand_scan(struct mtd_info *mtd, int maxchips)
 	uint8_t dev_found = 0;
 	uint8_t wide_bus;
 	uint8_t index;
+	uint32_t wr_rd_bsygap;
+	uint32_t recovery_cycle;
 
 	/* Probe the Flash device for ONFI compliance */
 	if (!flash_onfi_probe(chip)) {
@@ -6585,6 +6656,9 @@ int msm_nand_scan(struct mtd_info *mtd, int maxchips)
 		mtd->writesize = supported_flash[index].pagesize * i;
 		mtd->oobsize   = supported_flash[index].oobsize  * i;
 		mtd->erasesize = supported_flash[index].blksize  * i;
+		wr_rd_bsygap   = supported_flash[index].wr_rd_bsygap;
+		recovery_cycle = supported_flash[index].recovery_cycles;
+		mtd->second_bbmarker = supported_flash[index].second_bbmarker;
 
 		if (!interleave_enable)
 			mtd_writesize = mtd->writesize;
@@ -6599,6 +6673,7 @@ int msm_nand_scan(struct mtd_info *mtd, int maxchips)
 		pr_info("Pagesize : %d Bytes\n", mtd->writesize);
 		pr_info("Erasesize: %d Bytes\n", mtd->erasesize);
 		pr_info("Oobsize  : %d Bytes\n", mtd->oobsize);
+		pr_info("2nd_bbm  : %d\n", mtd->second_bbmarker);
 	} else {
 		pr_err("Unsupported Nand,Id: 0x%x \n", flash_id);
 		return -ENODEV;
@@ -6614,12 +6689,12 @@ int msm_nand_scan(struct mtd_info *mtd, int maxchips)
 		| ((wide_bus) ? (0 << 23) : (1 << 23));
 
 	chip->CFG1 = (0 <<  0)  /* Enable ecc */
-		|    (7 <<  2)  /* 8 recovery cycles */
+		|    ((recovery_cycle) <<  2)  /* (value+1) recovery cycles */
 		|    (0 <<  5)  /* Allow CS deassertion */
 		|  ((mtd_writesize - (528 * ((mtd_writesize >> 9) - 1)) + 1)
 				<<  6)  /* Bad block marker location */
 		|    (0 << 16)  /* Bad block in user data area */
-		|    (2 << 17)  /* 6 cycle tWB/tRB */
+		|    ((wr_rd_bsygap) << 17)  /* (value+1)x2 clock cycle */
 		| (wide_bus << 1); /* Wide flash bit */
 
 	chip->ecc_buf_cfg = 0x203;
@@ -6661,7 +6736,6 @@ int msm_nand_scan(struct mtd_info *mtd, int maxchips)
 		mtd->write_oob = msm_nand_write_oob_dualnandc;
 		if (interleave_enable) {
 			mtd->erase = msm_nand_erase_dualnandc;
-			mtd->block_isbad = msm_nand_block_isbad_dualnandc;
 		}
 	}
 

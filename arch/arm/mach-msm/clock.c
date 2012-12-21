@@ -222,10 +222,7 @@ static int axi_freq_notifier_handler(struct notifier_block *block,
 	/* On 7x30, ebi1_clk votes are dropped during power collapse, but
 	 * pbus_clk votes are not. Use pbus_clk to implicitly request ebi1
 	 * and AXI rates. */
-	if (cpu_is_msm7x30() || cpu_is_msm8x55())
-		return clk_set_min_rate(pbus_clk, min_freq/2);
-	else
-		return ebi1_clk_set_min_rate(CLKVOTE_PMQOS, min_freq);
+	return clk_set_min_rate(pbus_clk, min_freq/2);
 }
 
 /*
@@ -299,10 +296,8 @@ void __init msm_clock_init(struct clk *clock_tbl, unsigned num_clocks)
 
 	ebi1_clk = clk_get(NULL, "ebi1_clk");
 	BUG_ON(IS_ERR(ebi1_clk));
-	if (cpu_is_msm7x30() || cpu_is_msm8x55()) {
-		pbus_clk = clk_get(NULL, "pbus_clk");
-		BUG_ON(IS_ERR(pbus_clk));
-	}
+	pbus_clk = clk_get(NULL, "pbus_clk");
+	BUG_ON(IS_ERR(pbus_clk));
 
 	axi_freq_notifier_block.notifier_call = axi_freq_notifier_handler;
 	pm_qos_add_notifier(PM_QOS_SYSTEM_BUS_FREQ, &axi_freq_notifier_block);

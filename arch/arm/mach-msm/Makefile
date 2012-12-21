@@ -128,9 +128,21 @@ obj-$(CONFIG_TROUT_H2W) += board-trout-h2w.o
 obj-$(CONFIG_TROUT_BATTCHG) += htc_battery.o
 obj-$(CONFIG_TROUT_PWRSINK) += htc_pwrsink.o
 obj-$(CONFIG_ARCH_MSM7X27) += board-msm7x27.o devices-msm7x27.o
-obj-$(CONFIG_ARCH_MSM7X30) += board-msm7x30.o devices-msm7x30.o
+obj-$(CONFIG_ARCH_MSM7X30) += devices-msm7x30.o
 obj-$(CONFIG_ARCH_MSM7X30) += clock-local.o clock-7x30.o acpuclock-7x30.o
 obj-$(CONFIG_ARCH_MSM7X25) += board-msm7x27.o devices-msm7x25.o
+
+obj-$(CONFIG_MACH_MSM7X30_SURF) += board-msm7x30.o 
+obj-$(CONFIG_MACH_MSM7X30_FFA) += board-msm7x30.o 
+obj-$(CONFIG_MACH_MSM7X30_FLUID) += board-msm7x30.o 
+obj-$(CONFIG_MACH_MSM8X55_SURF) += board-msm7x30.o 
+obj-$(CONFIG_MACH_MSM8X55_FFA) += board-msm7x30.o 
+obj-$(CONFIG_MACH_MSM8X55_SVLTE_FFA) += board-msm7x30.o 
+obj-$(CONFIG_MACH_MSM8X55_SVLTE_SURF) += board-msm7x30.o 
+
+obj-$(CONFIG_MACH_SEMC_HALLON) += board-semc_mogami.o board-semc_mogami-rfkill.o keypad-hallon.o leds-hallon.o gpio-hallon.o charger-hallon.o fpc_test-hallon.o
+
+obj-$(CONFIG_MOGAMI_VIBRATOR) += vibrator-mogami.o
 
 obj-$(CONFIG_MACH_SAPPHIRE) += board-sapphire.o board-sapphire-gpio.o
 obj-$(CONFIG_MACH_SAPPHIRE) += board-sapphire-keypad.o board-sapphire-panel.o
@@ -159,7 +171,22 @@ obj-y	+= tlmm-msm8660.o msm8660-gpio.o
 else
 obj-y	+= gpio.o
 endif
+
+obj-$(CONFIG_MSM7200A_TLMM)	+= tlmm-msm7200a.o
+obj-$(CONFIG_MSM8660_TLMM)	+= tlmm-msm8660.o msm8660-gpio.o
+obj-$(CONFIG_SEMC_RPC_SERVER_HANDSET) += semc_rpc_server_handset.o
 obj-$(CONFIG_ARCH_MSM7X27)	+= gpiomux.o gpiomux-7x00.o gpiomux-7x27.o
 obj-$(CONFIG_ARCH_MSM7X30)	+= gpiomux.o gpiomux-7x00.o gpiomux-7x30.o
 obj-$(CONFIG_ARCH_QSD8X50)	+= gpiomux.o gpiomux-7x00.o gpiomux-8x50.o
 obj-$(CONFIG_ARCH_MSM8X60)	+= gpiomux.o gpiomux-8x60.o
+
+ifdef CONFIG_MSM_RPC_OEM_RAPI
+	obj-$(CONFIG_BATTERY_SEMC_ARCH)	+= semc_battery_data.o
+endif
+
+ifdef CONFIG_ARCH_MSM7X30
+	obj-$(CONFIG_SIMPLE_REMOTE_PLATFORM) += simple_remote_msm7x30_pf.o
+endif
+
+obj-$(CONFIG_PMIC_TIME) += pmic_time.o
+

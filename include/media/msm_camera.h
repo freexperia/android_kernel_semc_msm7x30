@@ -1,4 +1,5 @@
 /* Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (C) 2010 Sony Ericsson Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -132,6 +133,9 @@
 #define MSM_CAM_IOCTL_ABORT_CAPTURE \
 	_IO(MSM_CAM_IOCTL_MAGIC, 33)
 
+#define MSM_CAM_IOCTL_ENABLE_OUTPUT_IND  \
+    _IOW(MSM_CAM_IOCTL_MAGIC, 34, uint32_t *)
+
 #define MSM_CAMERA_LED_OFF  0
 #define MSM_CAMERA_LED_LOW  1
 #define MSM_CAMERA_LED_HIGH 2
@@ -141,6 +145,7 @@
 
 #define MAX_SENSOR_NUM  3
 #define MAX_SENSOR_NAME 32
+#define MAX_MODULE_NAME 8 /* extension */
 
 #define PP_SNAP  0x01
 #define PP_RAW_SNAP ((0x01)<<1)
@@ -224,37 +229,35 @@ struct msm_camera_cfg_cmd {
 #define CMD_PICT_T_AXI_CFG		4
 #define CMD_PICT_M_AXI_CFG		5
 #define CMD_RAW_PICT_AXI_CFG		6
+#define CMD_STATS_AXI_CFG 7
+#define CMD_STATS_AF_AXI_CFG 8
+#define CMD_FRAME_BUF_RELEASE 9
+#define CMD_PREV_BUF_CFG 10
+#define CMD_SNAP_BUF_RELEASE 11
+#define CMD_SNAP_BUF_CFG 12
+#define CMD_STATS_DISABLE 13
+#define CMD_STATS_AEC_AWB_ENABLE 14
+#define CMD_STATS_AF_ENABLE 15
+#define CMD_STATS_BUF_RELEASE 16
+#define CMD_STATS_AF_BUF_RELEASE 17
+#define CMD_STATS_ENABLE 18
+#define UPDATE_STATS_INVALID 19
 
-#define CMD_FRAME_BUF_RELEASE		7
-#define CMD_PREV_BUF_CFG		8
-#define CMD_SNAP_BUF_RELEASE		9
-#define CMD_SNAP_BUF_CFG		10
-#define CMD_STATS_DISABLE		11
-#define CMD_STATS_AEC_AWB_ENABLE	12
-#define CMD_STATS_AF_ENABLE		13
-#define CMD_STATS_AEC_ENABLE		14
-#define CMD_STATS_AWB_ENABLE		15
-#define CMD_STATS_ENABLE  		16
+#define CMD_STATS_AEC_ENABLE 20
+#define CMD_STATS_AWB_ENABLE 21
+#define CMD_STATS_AEC_AXI_CFG 22
+#define CMD_STATS_AWB_AXI_CFG 23
+#define CMD_STATS_RS_AXI_CFG 24
+#define CMD_STATS_CS_AXI_CFG 25
+#define CMD_STATS_IHIST_AXI_CFG 26
+#define CMD_STATS_SKIN_AXI_CFG 27
+#define CMD_STATS_AEC_BUF_RELEASE 28
+#define CMD_STATS_AWB_BUF_RELEASE 29
+#define CMD_STATS_RS_BUF_RELEASE 30
+#define CMD_STATS_CS_BUF_RELEASE 31
+#define CMD_STATS_IHIST_BUF_RELEASE 32
+#define CMD_STATS_SKIN_BUF_RELEASE 33
 
-#define CMD_STATS_AXI_CFG		17
-#define CMD_STATS_AEC_AXI_CFG		18
-#define CMD_STATS_AF_AXI_CFG 		19
-#define CMD_STATS_AWB_AXI_CFG		20
-#define CMD_STATS_RS_AXI_CFG		21
-#define CMD_STATS_CS_AXI_CFG		22
-#define CMD_STATS_IHIST_AXI_CFG		23
-#define CMD_STATS_SKIN_AXI_CFG		24
-
-#define CMD_STATS_BUF_RELEASE		25
-#define CMD_STATS_AEC_BUF_RELEASE	26
-#define CMD_STATS_AF_BUF_RELEASE	27
-#define CMD_STATS_AWB_BUF_RELEASE	28
-#define CMD_STATS_RS_BUF_RELEASE	29
-#define CMD_STATS_CS_BUF_RELEASE	30
-#define CMD_STATS_IHIST_BUF_RELEASE	31
-#define CMD_STATS_SKIN_BUF_RELEASE	32
-
-#define UPDATE_STATS_INVALID		33
 #define CMD_AXI_CFG_SNAP_GEMINI		34
 #define CMD_AXI_CFG_SNAP		35
 #define CMD_AXI_CFG_PREVIEW		36
@@ -263,8 +266,10 @@ struct msm_camera_cfg_cmd {
 #define CMD_STATS_IHIST_ENABLE 38
 #define CMD_STATS_RS_ENABLE 39
 #define CMD_STATS_CS_ENABLE 40
-#define CMD_VPE 41
-#define CMD_AXI_CFG_VPE 42
+#define CMD_AXI_CFG_O1_AND_O2 41  
+#define CMD_AXI_CFG_CONT_RAW_RGB 42
+#define CMD_VPE 43
+#define CMD_AXI_CFG_VPE 44
 
 /* vfe config command: config command(from config thread)*/
 struct msm_vfe_cfg_cmd {
@@ -300,8 +305,9 @@ struct camera_enable_cmd {
 #define MSM_PMEM_SKIN			13
 #define MSM_PMEM_VIDEO			14
 #define MSM_PMEM_PREVIEW		15
-#define MSM_PMEM_VIDEO_VPE		16
-#define MSM_PMEM_MAX			17
+#define MSM_PMEM_RGB_STREAM		16 /* extension */
+#define MSM_PMEM_VIDEO_VPE		17
+#define MSM_PMEM_MAX			18
 
 #define STAT_AEAW			0
 #define STAT_AEC			1
@@ -339,14 +345,15 @@ struct outputCfg {
 	uint32_t window_height_lastline;
 };
 
-#define OUTPUT_1	0
-#define OUTPUT_2	1
-#define OUTPUT_1_AND_2            2   /* snapshot only */
-#define OUTPUT_1_AND_3            3   /* video */
-#define CAMIF_TO_AXI_VIA_OUTPUT_2 4
-#define OUTPUT_1_AND_CAMIF_TO_AXI_VIA_OUTPUT_2 5
-#define OUTPUT_2_AND_CAMIF_TO_AXI_VIA_OUTPUT_1 6
-#define LAST_AXI_OUTPUT_MODE_ENUM = OUTPUT_2_AND_CAMIF_TO_AXI_VIA_OUTPUT_1 7
+#define OUTPUT_1 0
+#define OUTPUT_2 1
+#define OUTPUT_1_AND_2 2
+#define CAMIF_TO_AXI_VIA_OUTPUT_2 3
+#define OUTPUT_1_AND_CAMIF_TO_AXI_VIA_OUTPUT_2 4
+#define OUTPUT_2_AND_CAMIF_TO_AXI_VIA_OUTPUT_1 5
+#define OUTPUT_1_AND_3 6
+#define CAMIF_TO_OUTPUT_CONTINUOUS_RAW 7 /* extension */
+#define LAST_AXI_OUTPUT_MODE_ENUM = CAMIF_TO_OUTPUT_CONTINUOUS_RAW 8  
 
 #define MSM_FRAME_PREV_1	0
 #define MSM_FRAME_PREV_2	1
@@ -359,6 +366,7 @@ struct outputCfg {
 #define OUTPUT_TYPE_L		(1<<4)
 
 struct msm_frame {
+	uint16_t fmt; /* extension */
 	struct timespec ts;
 	int path;
 	unsigned long buffer;
@@ -387,11 +395,14 @@ struct msm_stats_buf {
 #define MSM_V4L2_GET_CTRL	5
 #define MSM_V4L2_SET_CTRL	6
 #define MSM_V4L2_QUERY		7
+/* extension begin */
 #define MSM_V4L2_GET_CROP	8
 #define MSM_V4L2_SET_CROP	9
-#define MSM_V4L2_MAX		10
+#define V4L2_CAMERA_EXIT 10
+#define MSM_V4L2_MAX 11
+/* extension end */
 
-#define V4L2_CAMERA_EXIT 	43
+
 struct crop_info {
 	void *info;
 	int len;
@@ -408,36 +419,59 @@ struct msm_snapshot_pp_status {
 	void *status;
 };
 
-#define CFG_SET_MODE			0
-#define CFG_SET_EFFECT			1
-#define CFG_START			2
-#define CFG_PWR_UP			3
-#define CFG_PWR_DOWN			4
+#define CFG_SET_MODE			    0
+#define CFG_SET_EFFECT			    1
+#define CFG_START			        2
+#define CFG_PWR_UP			        3
+#define CFG_PWR_DOWN			    4
 #define CFG_WRITE_EXPOSURE_GAIN		5
 #define CFG_SET_DEFAULT_FOCUS		6
-#define CFG_MOVE_FOCUS			7
+#define CFG_MOVE_FOCUS			    7
 #define CFG_REGISTER_TO_REAL_GAIN	8
 #define CFG_REAL_TO_REGISTER_GAIN	9
-#define CFG_SET_FPS			10
-#define CFG_SET_PICT_FPS		11
-#define CFG_SET_BRIGHTNESS		12
-#define CFG_SET_CONTRAST		13
-#define CFG_SET_ZOOM			14
+#define CFG_SET_FPS			        10
+#define CFG_SET_PICT_FPS		    11
+#define CFG_SET_BRIGHTNESS		    12
+#define CFG_SET_CONTRAST		    13
+#define CFG_SET_ZOOM			    14
 #define CFG_SET_EXPOSURE_MODE		15
-#define CFG_SET_WB			16
-#define CFG_SET_ANTIBANDING		17
-#define CFG_SET_EXP_GAIN		18
+#define CFG_SET_WB			        16
+#define CFG_SET_ANTIBANDING		    17
+#define CFG_SET_EXP_GAIN		    18
 #define CFG_SET_PICT_EXP_GAIN		19
 #define CFG_SET_LENS_SHADING		20
-#define CFG_GET_PICT_FPS		21
-#define CFG_GET_PREV_L_PF		22
-#define CFG_GET_PREV_P_PL		23
-#define CFG_GET_PICT_L_PF		24
-#define CFG_GET_PICT_P_PL		25
+#define CFG_GET_PICT_FPS		    21
+#define CFG_GET_PREV_L_PF		    22
+#define CFG_GET_PREV_P_PL		    23
+#define CFG_GET_PICT_L_PF		    24
+#define CFG_GET_PICT_P_PL		    25
 #define CFG_GET_AF_MAX_STEPS		26
 #define CFG_GET_PICT_MAX_EXP_LC		27
-#define CFG_SEND_WB_INFO    28
-#define CFG_MAX 			29
+/* extension begin */
+#define CFG_SEND_WB_INFO		    28
+#define CFG_SET_DIMENSION		    29
+#define CFG_SET_PREVIEW_MODE		30
+#define	CFG_SET_TEST_PATTERN		31
+#define CFG_GET_INT_INFO		    32
+#define CFG_GET_AF_STATUS		    33
+#define CFG_GET_EXIF			    34
+#define CFG_SET_SCENE			    35
+#define CFG_GET_AF_ASSIST_LIGHT		36
+#define CFG_SET_SHARPNESS		    37
+#define CFG_SET_IMG_QUALITY		    38
+#define CFG_SET_EXPOSURE_COMPENSATION	39
+#define CFG_SET_ISO                 40
+#define CFG_SET_SENSOR_DIMENSION    41
+#define CFG_SET_FLASH               42
+#define CFG_GPIO_CTRL			43
+#define CFG_I2C_WRITE			44
+#define CFG_I2C_READ			45
+#define CFG_CSI_CTRL			46
+#define CFG_ROM_READ			47
+/* extension end */
+#define CFG_MAX 					48
+
+
 
 #define MOVE_NEAR	0
 #define MOVE_FAR	1
@@ -445,7 +479,14 @@ struct msm_snapshot_pp_status {
 #define SENSOR_PREVIEW_MODE		0
 #define SENSOR_SNAPSHOT_MODE		1
 #define SENSOR_RAW_SNAPSHOT_MODE	2
-#define SENSOR_VIDEO_120FPS_MODE	3
+/* extension begin */
+#define SENSOR_MOVIE_MODE		3
+#define SENSOR_HALF_RELEASE_MODE	4
+#define SENSOR_RAW_RGB_STREAM_MODE	5
+#define SENSOR_RAW_SNAPSHOT_START	6
+#define SENSOR_RAW_RGB_SNAPSHOT_MODE	7
+/* extension end */
+#define SENSOR_VIDEO_120FPS_MODE	8
 
 #define SENSOR_QTR_SIZE			0
 #define SENSOR_FULL_SIZE		1
@@ -456,12 +497,30 @@ struct msm_snapshot_pp_status {
 #define CAMERA_EFFECT_MONO		1
 #define CAMERA_EFFECT_NEGATIVE		2
 #define CAMERA_EFFECT_SOLARIZE		3
-#define CAMERA_EFFECT_SEPIA		4
-#define CAMERA_EFFECT_POSTERIZE		5
-#define CAMERA_EFFECT_WHITEBOARD	6
-#define CAMERA_EFFECT_BLACKBOARD	7
-#define CAMERA_EFFECT_AQUA		8
-#define CAMERA_EFFECT_MAX		9
+#define CAMERA_EFFECT_PASTEL 4
+#define CAMERA_EFFECT_MOSAIC 5
+#define CAMERA_EFFECT_RESIZE 6
+#define CAMERA_EFFECT_SEPIA 7
+#define CAMERA_EFFECT_POSTERIZE 8
+#define CAMERA_EFFECT_WHITEBOARD 9
+#define CAMERA_EFFECT_BLACKBOARD 10
+#define CAMERA_EFFECT_AQUA 11
+#define CAMERA_EFFECT_MAX 12
+
+/* extension begin */
+#define CAMERA_WBTYPE_AUTO 1
+#define CAMERA_WBTYPE_CUSTOM 2
+#define CAMERA_WBTYPE_INCANDESCENT 3
+#define CAMERA_WBTYPE_FLUORESCENT 4
+#define CAMERA_WBTYPE_DAYLIGHT 5
+#define CAMERA_WBTYPE_CLOUDY_DAYLIGHT 6
+#define CAMERA_WBTYPE_TWILIGHT 7
+#define CAMERA_WBTYPE_SHADE 8
+
+#define CAMERA_AUTO_EXPOSURE_FRAME_AVG 0
+#define CAMERA_AUTO_EXPOSURE_CENTER_WEIGHTED 1
+#define CAMERA_AUTO_EXPOSURE_SPOT_METERING 2
+/* extension end */
 
 struct sensor_pict_fps {
 	uint16_t prevfps;
@@ -483,11 +542,123 @@ struct fps_cfg {
 	uint16_t fps_div;
 	uint32_t pict_fps_div;
 };
+
+/* extension begin */
+struct camera_dimension_t
+{
+	uint16_t picture_width;
+	uint16_t picture_height;
+	uint16_t display_width;
+	uint16_t display_height;
+	uint16_t thumbnail_width;
+	uint16_t thumbnail_height;
+};
+
+struct camera_preview_dimension_t
+{
+	uint16_t sensor_width;
+	uint16_t sensor_height;
+};
+
+enum set_test_pattern_t {
+   TEST_PATTERN_ON,
+   TEST_PATTERN_OFF
+};
+
+enum camera_af_status {
+	SENSOR_AF_IN_PROGRESS,
+	SENSOR_AF_SUCCESS,
+	SENSOR_AF_FAILED
+};
+
+struct cam_ctrl_rational_t
+{
+  uint32_t  numerator;
+  uint32_t  denominator;
+} ;
+/* extension end */
+
+struct cam_ctrl_exif_params_t {
+	uint32_t shutter_speed; /* in us */
+	uint16_t iso_speed_index;
+	uint16_t camera_revision;
+	uint8_t  flash_fired; /* extension */
+};
+
+/* extension begin */
+enum camera_scene
+{
+	SENSOR_SCENE_AUTO,
+	SENSOR_SCENE_MACRO,
+	SENSOR_SCENE_TWILIGHT,
+	SENSOR_SCENE_SPORTS,
+	SENSOR_SCENE_BEACH,
+	SENSOR_SCENE_SNOW,
+	SENSOR_SCENE_LANDSCAPE,
+	SENSOR_SCENE_PORTRAIT,
+	SENSOR_SCENE_TWILIGHT_PORTRAIT,
+	SENSOR_SCENE_DOCUMENT,
+};
+
+enum camera_focus_mode {
+	SENSOR_FOCUS_MODE_AUTO,
+	SENSOR_FOCUS_MODE_MACRO,
+	SENSOR_FOCUS_MODE_CONTINUOUS,
+	SENSOR_FOCUS_MODE_FIXED
+};
+
 struct wb_info_cfg {
 	uint16_t red_gain;
 	uint16_t green_gain;
 	uint16_t blue_gain;
 };
+
+enum sensor_gpio_ctrl_type {
+	SENSOR_GPIO_CTRL_RESET,
+	SENSOR_GPIO_CTRL_STANBY,
+};
+
+struct sensor_gpio_ctrl {
+	enum sensor_gpio_ctrl_type gpio;
+	int value;
+};
+
+enum sensor_i2c_addr_type {
+	SENSOR_I2C_ADDR_0BYTE = 0,
+	SENSOR_I2C_ADDR_1BYTE = 1,
+	SENSOR_I2C_ADDR_2BYTE = 2,
+	SENSOR_I2C_ADDR_4BYTE = 4,
+};
+
+struct sensor_i2c_io {
+	uint8_t slave_addr;
+	uint32_t address;
+	enum sensor_i2c_addr_type address_type;
+	uint8_t length;
+	uint8_t __user *data;
+};
+
+enum sensor_csi_data_format {
+	SENSOR_CSI_DATA_8BIT,
+	SENSOR_CSI_DATA_10BIT,
+	SENSOR_CSI_DATA_12BIT,
+};
+
+struct sensor_csi_params {
+	enum sensor_csi_data_format data_format;
+	uint8_t lane_cnt;
+	uint8_t lane_assign;
+	uint8_t settle_cnt;
+	uint8_t dpcm_scheme;
+};
+
+struct sensor_rom_in {
+	uint16_t address;
+	uint16_t length;
+	uint8_t __user *data;
+};
+/* extension end */
+
 struct sensor_cfg_data {
 	int cfgtype;
 	int mode;
@@ -496,6 +667,16 @@ struct sensor_cfg_data {
 
 	union {
 		int8_t effect;
+		uint8_t quality; /* extension */
+		uint8_t brightness;
+		uint8_t contrast;
+		uint8_t sharpness;
+		uint8_t wb_type;
+		/* extension begin */
+		int8_t ev;
+		int8_t exp_mode;
+		uint16_t iso_mode;
+		/* extension end */
 		uint8_t lens_shading;
 		uint16_t prevl_pf;
 		uint16_t prevp_pl;
@@ -508,6 +689,20 @@ struct sensor_cfg_data {
 		struct focus_cfg focus;
 		struct fps_cfg fps;
 		struct wb_info_cfg wb_info;
+		/* extension begin */
+		struct camera_dimension_t dimension;
+		enum set_test_pattern_t set_test_pattern;
+		enum camera_af_status af_status;
+		struct cam_ctrl_exif_params_t exif;
+		enum camera_scene scene;
+		struct camera_preview_dimension_t preview_dimension;
+		uint8_t flashled;
+		enum camera_focus_mode focus_mode;
+		struct sensor_gpio_ctrl gpio_ctrl;
+		struct sensor_i2c_io i2c_io;
+		struct sensor_csi_params csi_ctrl;
+		struct sensor_rom_in rom_in;
+		/* extension end */
 	} cfg;
 };
 
@@ -523,5 +718,6 @@ struct msm_camsensor_info {
 	char name[MAX_SENSOR_NAME];
 	uint8_t flash_enabled;
 	int8_t total_steps;
+	char module_name[MAX_MODULE_NAME]; /* extension */
 };
 #endif /* __LINUX_MSM_CAMERA_H */

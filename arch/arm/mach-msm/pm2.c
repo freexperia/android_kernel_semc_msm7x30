@@ -1773,6 +1773,16 @@ static struct notifier_block msm_reboot_notifier = {
 	.notifier_call = msm_reboot_call,
 };
 
+static int msm_panic_call(struct notifier_block *this,
+			  unsigned long event, void *ptr)
+{
+	restart_reason = 0xC0DEDEAD;
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block msm_panic_notifier = {
+	.notifier_call = msm_panic_call,
+};
 
 /******************************************************************************
  *
@@ -1811,6 +1821,7 @@ static int __init msm_pm_init(void)
 	pm_power_off = msm_pm_power_off;
 	arm_pm_restart = msm_pm_restart;
 	register_reboot_notifier(&msm_reboot_notifier);
+	atomic_notifier_chain_register(&panic_notifier_list, &msm_panic_notifier);
 
 	msm_pm_smem_data = smem_alloc(SMEM_APPS_DEM_SLAVE_DATA,
 		sizeof(*msm_pm_smem_data));

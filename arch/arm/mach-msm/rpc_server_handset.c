@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/switch.h>
+#include <linux/jiffies.h>
 
 #include <asm/mach-types.h>
 
@@ -53,6 +54,8 @@
 #define HS_REL_K		0xFF	/* key release */
 
 #define KEY(hs_key, input_key) ((hs_key << 24) | input_key)
+
+#define END_KEY_PERIOD  1000  /* Number of ms of button press to convert to end-call key */
 
 enum hs_event {
 	HS_EVNT_EXT_PWR = 0,	/* External Power status        */
@@ -191,6 +194,7 @@ static const uint32_t hs_key_map[] = {
 enum {
 	NO_DEVICE	= 0,
 	MSM_HEADSET	= 1,
+	MSM_HEADPHONE	= 2,
 };
 /* Add newer versions at the top of array */
 static const unsigned int rpc_vers[] = {
@@ -212,6 +216,7 @@ static struct hs_subs_rpc_req *hs_subs_req;
 struct msm_handset {
 	struct input_dev *ipdev;
 	struct switch_dev sdev;
+        struct timer_list endkey_timer;
 	struct msm_handset_platform_data *hs_pdata;
 };
 
@@ -250,6 +255,8 @@ report_headset_switch(struct input_dev *dev, int key, int value)
  * new-architecutre:
  * key-press = (key_code, 0)
  * key-release = (key_code, 0xff)
+ * SEMC:
+ * switch = (switch_code, switch_value)
  */
 static void report_hs_key(uint32_t key_code, uint32_t key_parm)
 {
@@ -266,15 +273,22 @@ static void report_hs_key(uint32_t key_code, uint32_t key_parm)
 		key_code = key_parm;
 
 	switch (key) {
-	case KEY_POWER:
-	case KEY_END:
 	case KEY_MEDIA:
+                if (key_code == HS_REL_K)
+                        del_timer(&hs->endkey_timer);
+                else
+                        mod_timer(&hs->endkey_timer, jiffies + msecs_to_jiffies(END_KEY_PERIOD));
+
+	case KEY_END:
+                /* This will never actually happen since we emulate it on android instead */
+	case KEY_POWER:
 	case KEY_VOLUMEUP:
 	case KEY_VOLUMEDOWN:
 		input_report_key(hs->ipdev, key, (key_code != HS_REL_K));
 		break;
 	case SW_HEADPHONE_INSERT:
-		report_headset_switch(hs->ipdev, key, (key_code != HS_REL_K));
+		/* Special, this is a switch, so we pass the param onwards */
+		report_headset_switch(hs->ipdev, key, key_parm);
 		break;
 	case -1:
 		printk(KERN_ERR "%s: No mapping for remote handset event %d\n",
@@ -282,6 +296,23 @@ static void report_hs_key(uint32_t key_code, uint32_t key_parm)
 		return;
 	}
 	input_sync(hs->ipdev);
+}
+
+/**
+ * Timeout for endkey, will automatically send an KEY_END
+ * if headset button is held for longer than END_KEY_PERIOD ms
+ *
+ **/
+static void endkey_timeout(unsigned long data)
+{
+        struct msm_handset* myhs = (struct msm_handset*)data;
+        if (!data)
+                return;
+
+        /* FAKE IT! */
+        input_report_key(myhs->ipdev, KEY_END, 1);
+        input_report_key(myhs->ipdev, KEY_END, 0);
+        input_sync(hs->ipdev);
 }
 
 static int handle_hs_rpc_call(struct msm_rpc_server *server,
@@ -565,6 +596,8 @@ static ssize_t msm_headset_print_name(struct switch_dev *sdev, char *buf)
 		return sprintf(buf, "No Device\n");
 	case MSM_HEADSET:
 		return sprintf(buf, "Headset\n");
+	case MSM_HEADPHONE:
+		return sprintf(buf, "Headphone\n");
 	}
 	return -EINVAL;
 }
@@ -627,6 +660,11 @@ static int __devinit hs_probe(struct platform_device *pdev)
 		dev_err(&ipdev->dev, "rpc init failure\n");
 		goto err_hs_rpc_init;
 	}
+
+        /* Initialize timer for emulating end key */
+        init_timer(&hs->endkey_timer);
+        hs->endkey_timer.function = endkey_timeout;
+        hs->endkey_timer.data = (unsigned long)hs;
 
 	return 0;
 

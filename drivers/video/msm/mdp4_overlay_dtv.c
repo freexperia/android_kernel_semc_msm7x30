@@ -1,4 +1,5 @@
 /* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+ * Copyright (C) 2011 Sony Ericsson Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -250,34 +251,14 @@ int mdp4_dtv_on(struct platform_device *pdev)
 	/* Test pattern 8 x 8 pixel */
 	/* MDP_OUTP(MDP_BASE + DTV_BASE + 0x4C, 0x80000808); */
 
-	ret = panel_next_on(pdev);
-	if (ret == 0) {
-		/* enable DTV block */
-		MDP_OUTP(MDP_BASE + DTV_BASE, 1);
-		mdp_pipe_ctrl(MDP_OVERLAY1_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-		dev_info(&pdev->dev, "mdp4_overlay_dtv: on");
-	} else {
-		dev_warn(&pdev->dev, "mdp4_overlay_dtv: panel_next_on failed");
-	}
 	/* MDP cmd block disable */
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 
-	return ret;
+	return 0;
 }
 
 int mdp4_dtv_off(struct platform_device *pdev)
 {
-	int ret = 0;
-
-	/* MDP cmd block enable */
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-	MDP_OUTP(MDP_BASE + DTV_BASE, 0);
-	/* MDP cmd block disable */
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-	mdp_pipe_ctrl(MDP_OVERLAY1_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-
-	ret = panel_next_off(pdev);
-
 	/* delay to make sure the last frame finishes */
 	msleep(100);
 
@@ -286,6 +267,43 @@ int mdp4_dtv_off(struct platform_device *pdev)
 	/* dis-engage rgb2 from mixer1 */
 	if (dtv_pipe)
 		mdp4_mixer_stage_down(dtv_pipe);
+
+	return 0;
+}
+
+int mdp4_dtv_lcdc_enable(struct platform_device *pdev, int enable)
+{
+	int dtv_enable, ret = 0;
+	/* MDP cmd block enable */
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+	dtv_enable = inpdw(MDP_BASE + DTV_BASE);
+	if (enable) {
+		if (!dtv_enable) {
+			ret = panel_next_on(pdev);
+			if (ret == 0) {
+				/* enable DTV block */
+				MDP_OUTP(MDP_BASE + DTV_BASE, 1);
+				mdp_pipe_ctrl(MDP_OVERLAY1_BLOCK,
+					MDP_BLOCK_POWER_ON, FALSE);
+				dev_info(&pdev->dev, "%s: on", __func__);
+			} else {
+				dev_warn(&pdev->dev,
+					"%s: panel_next_on failed", __func__);
+			}
+		}
+	} else {
+		if (dtv_enable) {
+			MDP_OUTP(MDP_BASE + DTV_BASE, 0);
+			mdp_pipe_ctrl(MDP_OVERLAY1_BLOCK,
+				MDP_BLOCK_POWER_OFF, FALSE);
+			ret = panel_next_off(pdev);
+			if (ret != 0)
+				dev_warn(&pdev->dev,
+					"%s: panel_next_off failed", __func__);
+		}
+	}
+	/* MDP cmd block disable */
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 
 	return ret;
 }
@@ -302,7 +320,7 @@ void mdp4_dtv_overlay(struct msm_fb_data_type *mfd)
 {
 	struct fb_info *fbi = mfd->fbi;
 	uint8 *buf;
-	int bpp;
+	int bpp, dtv_on;
 	unsigned long flag;
 	struct mdp4_overlay_pipe *pipe;
 
@@ -315,7 +333,7 @@ void mdp4_dtv_overlay(struct msm_fb_data_type *mfd)
 	buf += fbi->var.xoffset * bpp +
 		fbi->var.yoffset * fbi->fix.line_length;
 
-	mutex_lock(&mfd->dma->ov_mutex);
+	down(&mfd->dma->ov_sem);
 
 	pipe = dtv_pipe;
 	pipe->srcp0_addr = (uint32) buf;
@@ -323,18 +341,23 @@ void mdp4_dtv_overlay(struct msm_fb_data_type *mfd)
 	mdp4_overlay_reg_flush(pipe, 1); /* rgb2 and mixer1 */
 
 	/* enable irq */
-	spin_lock_irqsave(&mdp_spin_lock, flag);
-	mdp_enable_irq(MDP_OVERLAY1_TERM);
-	INIT_COMPLETION(dtv_pipe->comp);
-	mfd->dma->waiting = TRUE;
-	outp32(MDP_INTR_CLEAR, INTR_OVERLAY1_DONE);
-	mdp_intr_mask |= INTR_OVERLAY1_DONE;
-	outp32(MDP_INTR_ENABLE, mdp_intr_mask);
-	spin_unlock_irqrestore(&mdp_spin_lock, flag);
-	wait_for_completion_killable(&dtv_pipe->comp);
-	mdp_disable_irq(MDP_OVERLAY1_TERM);
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+	dtv_on = inpdw(MDP_BASE + DTV_BASE);
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+	if (dtv_on) {
+		spin_lock_irqsave(&mdp_spin_lock, flag);
+		mdp_enable_irq(MDP_OVERLAY1_TERM);
+		INIT_COMPLETION(dtv_pipe->comp);
+		mfd->dma->waiting = TRUE;
+		outp32(MDP_INTR_CLEAR, INTR_OVERLAY1_DONE);
+		mdp_intr_mask |= INTR_OVERLAY1_DONE;
+		outp32(MDP_INTR_ENABLE, mdp_intr_mask);
+		spin_unlock_irqrestore(&mdp_spin_lock, flag);
+		wait_for_completion_killable(&dtv_pipe->comp);
+		mdp_disable_irq(MDP_OVERLAY1_TERM);
 
-	mdp4_stat.kickoff_dtv++;
+		mdp4_stat.kickoff_dtv++;
+	}
 
-	mutex_unlock(&mfd->dma->ov_mutex);
+	up(&mfd->dma->ov_sem);
 }

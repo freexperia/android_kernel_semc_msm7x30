@@ -1775,18 +1775,33 @@ static yaffs_Tnode *yaffs_PruneWorker(yaffs_Device *dev, yaffs_Tnode *tn,
 	if (tn) {
 		hasData = 0;
 
-		for (i = 0; i < YAFFS_NTNODES_INTERNAL; i++) {
-			if (tn->internal[i] && level > 0) {
-				tn->internal[i] =
-				    yaffs_PruneWorker(dev, tn->internal[i],
+		if(level > 0){
+			for (i = 0; i < YAFFS_NTNODES_INTERNAL; i++) {
+				if (tn->internal[i]) {
+					tn->internal[i] =
+							yaffs_PruneWorker(dev, tn->internal[i],
 						      level - 1,
 						      (i == 0) ? del0 : 1);
+				}
+
+				if (tn->internal[i])
+					hasData++;
+			}
+		} else {
+			int tnodeSize;
+			__u32 *map = (__u32 *)tn;
+			tnodeSize = (dev->tnodeWidth * YAFFS_NTNODES_LEVEL0)/8;
+
+			if (tnodeSize < sizeof(yaffs_Tnode))
+				tnodeSize = sizeof(yaffs_Tnode);
+			tnodeSize /= sizeof(__u32);
+
+			for(i = 0; !hasData && i < tnodeSize; i++){
+				if(map[i])
+					hasData++;
 			}
 
-			if (tn->internal[i])
-				hasData++;
 		}
-
 		if (hasData == 0 && del0) {
 			/* Free and return NULL */
 
@@ -2728,6 +2743,7 @@ static int yaffs_FindBlockForGarbageCollection(yaffs_Device *dev,
 static void yaffs_BlockBecameDirty(yaffs_Device *dev, int blockNo)
 {
 	yaffs_BlockInfo *bi = yaffs_GetBlockInfo(dev, blockNo);
+	yaffs_BlockState oldState = bi->blockState;
 
 	int erasedOk = 0;
 
@@ -2768,7 +2784,8 @@ static void yaffs_BlockBecameDirty(yaffs_Device *dev, int blockNo)
 	if (erasedOk) {
 		/* Clean it up... */
 		bi->blockState = YAFFS_BLOCK_STATE_EMPTY;
-		dev->nErasedBlocks++;
+		if (oldState != YAFFS_BLOCK_STATE_EMPTY)
+			dev->nErasedBlocks++;
 		bi->pagesInUse = 0;
 		bi->softDeletions = 0;
 		bi->hasShrinkHeader = 0;

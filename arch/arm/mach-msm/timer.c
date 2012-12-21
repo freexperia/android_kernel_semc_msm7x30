@@ -149,6 +149,7 @@ struct msm_clock_percpu_data {
 	uint32_t                  last_set;
 	uint32_t                  sleep_offset;
 	uint32_t                  alarm_vtime;
+	uint32_t                  alarm;
 	uint32_t                  non_sleep_offset;
 	uint32_t                  in_sync;
 	cycle_t                   stopped_tick;
@@ -330,7 +331,10 @@ static int msm_timer_set_next_event(unsigned long cycles,
 	if (clock->flags & MSM_CLOCK_FLAGS_ODD_MATCH_WRITE)
 		while (now == clock_state->last_set)
 			now = msm_read_timer_count(clock, LOCAL_TIMER);
+
+	clock_state->alarm = alarm;
 	writel(alarm, clock->regbase + TIMER_MATCH_VAL);
+
 	if (clock->flags & MSM_CLOCK_FLAGS_DELAYED_WRITE_POST) {
 		/* read the counter four extra times to make sure write posts
 		   before reading the time */
@@ -777,7 +781,7 @@ int64_t msm_timer_enter_idle(void)
 	count = msm_read_timer_count(clock, LOCAL_TIMER);
 	if (clock_state->stopped++ == 0)
 		clock_state->stopped_tick = count + clock_state->sleep_offset;
-	alarm = readl(clock->regbase + TIMER_MATCH_VAL);
+	alarm = clock_state->alarm;
 	delta = alarm - count;
 	if (delta <= -(int32_t)((clock->freq << clock->shift) >> 10)) {
 		/* timer should have triggered 1ms ago */
@@ -968,6 +972,21 @@ unsigned long long sched_clock(void)
 	return result; 
 }
 
+static void msm_timer_reset(struct msm_clock *clock)
+{
+	uint32_t timer_val;
+	int retries = 10;
+
+	if (clock && clock->index == MSM_CLOCK_GPT) {
+		do {
+			writel(0, clock->regbase + TIMER_ENABLE);
+			writel(1, clock->regbase + TIMER_CLEAR);
+			timer_val = readl(clock->regbase + TIMER_COUNT_VAL);
+			mdelay(100);
+		} while (retries-- && timer_val);
+	}
+}
+
 static void __init msm_timer_init(void)
 {
 	int i;
@@ -981,6 +1000,9 @@ static void __init msm_timer_init(void)
 		struct msm_clock *clock = &msm_clocks[i];
 		struct clock_event_device *ce = &clock->clockevent;
 		struct clocksource *cs = &clock->clocksource;
+		if (reset_devices)
+			msm_timer_reset(clock);
+
 		writel(0, clock->regbase + TIMER_ENABLE);
 		writel(1, clock->regbase + TIMER_CLEAR);
 		writel(0, clock->regbase + TIMER_COUNT_VAL);
@@ -1037,6 +1059,7 @@ void local_timer_setup(struct clock_event_device *evt)
 		writel(1, clock->regbase + TIMER_CLEAR);
 		writel(0, clock->regbase + TIMER_COUNT_VAL);
 		writel(~0, clock->regbase + TIMER_MATCH_VAL);
+		__get_cpu_var(msm_clocks_percpu)[clock->index].alarm = ~0;
 	}
 	evt->irq = clock->irq.irq;
 	evt->name = "local_timer";

@@ -1396,7 +1396,7 @@ int mdp4_overlay_set(struct fb_info *info, struct mdp_overlay *req)
 	if (req->src.format == MDP_FB_FORMAT)
 		req->src.format = mfd->fb_imgType;
 
-	if (mutex_lock_interruptible(&mfd->dma->ov_mutex)) {
+	if (down_interruptible(&mfd->dma->ov_sem)) {
 		pr_err("%s: mutex_lock_interruptible, -EINTR\n", __func__);
 		return -EINTR;
 	}
@@ -1405,7 +1405,7 @@ int mdp4_overlay_set(struct fb_info *info, struct mdp_overlay *req)
 
 	ret = mdp4_overlay_req2pipe(req, mixer, &pipe, mfd);
 	if (ret < 0) {
-		mutex_unlock(&mfd->dma->ov_mutex);
+		up(&mfd->dma->ov_sem);
 		pr_err("%s: mdp4_overlay_req2pipe, ret=%d\n", __func__, ret);
 		return ret;
 	}
@@ -1414,9 +1414,13 @@ int mdp4_overlay_set(struct fb_info *info, struct mdp_overlay *req)
 	req->id = pipe->pipe_ndx;	/* pipe_ndx start from 1 */
 	pipe->req_data = *req;		/* keep original req */
 
+	if (pipe->mixer_num == MDP4_MIXER0) {
+		mdp4_vg_qseed_init(pipe->mixer_num);
+	}
+
 	mdp4_stat.overlay_set[pipe->mixer_num]++;
 
-	mutex_unlock(&mfd->dma->ov_mutex);
+	up(&mfd->dma->ov_sem);
 
 	return 0;
 }
@@ -1429,13 +1433,13 @@ int mdp4_overlay_unset(struct fb_info *info, int ndx)
 	if (mfd == NULL)
 		return -ENODEV;
 
-	if (mutex_lock_interruptible(&mfd->dma->ov_mutex))
+	if (down_interruptible(&mfd->dma->ov_sem))
 		return -EINTR;
 
 	pipe = mdp4_overlay_ndx2pipe(ndx);
 
 	if (pipe == NULL) {
-		mutex_unlock(&mfd->dma->ov_mutex);
+		up(&mfd->dma->ov_sem);
 		return -ENODEV;
 	}
 
@@ -1460,7 +1464,7 @@ int mdp4_overlay_unset(struct fb_info *info, int ndx)
 
 	mdp4_overlay_pipe_free(pipe);
 
-	mutex_unlock(&mfd->dma->ov_mutex);
+	up(&mfd->dma->ov_sem);
 
 	return 0;
 }
@@ -1519,13 +1523,13 @@ int mdp4_overlay_play(struct fb_info *info, struct msmfb_overlay_data *req,
 	if (pipe == NULL)
 		return -ENODEV;
 
-	if (mutex_lock_interruptible(&mfd->dma->ov_mutex))
+	if (down_interruptible(&mfd->dma->ov_sem))
 		return -EINTR;
 
 	pd = &ctrl->ov_pipe[pipe->pipe_num];
 	if (pd->player && pipe != pd->player) {
 		if (pipe->pipe_type == OVERLAY_TYPE_RGB) {
-			mutex_unlock(&mfd->dma->ov_mutex);
+			up(&mfd->dma->ov_sem);
 			return 0; /* ignore it, kicked out already */
 		}
 	}
@@ -1535,7 +1539,7 @@ int mdp4_overlay_play(struct fb_info *info, struct msmfb_overlay_data *req,
 	img = &req->data;
 	get_img(img, info, &start, &len, &p_src_file);
 	if (len == 0) {
-		mutex_unlock(&mfd->dma->ov_mutex);
+		up(&mfd->dma->ov_sem);
 		printk(KERN_ERR "mdp_overlay_play: could not retrieve"
 				       " image from memory\n");
 		return -1;
@@ -1594,7 +1598,7 @@ int mdp4_overlay_play(struct fb_info *info, struct msmfb_overlay_data *req,
 
 	mdp4_stat.overlay_play[pipe->mixer_num]++;
 
-	mutex_unlock(&mfd->dma->ov_mutex);
+	up(&mfd->dma->ov_sem);
 
 	return 0;
 }

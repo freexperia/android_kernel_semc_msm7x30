@@ -83,7 +83,11 @@ enum chg_type {
 	USB_CHG_TYPE__SDP,
 	USB_CHG_TYPE__CARKIT,
 	USB_CHG_TYPE__WALLCHARGER,
-	USB_CHG_TYPE__INVALID
+	USB_CHG_TYPE__INVALID,
+#ifdef CONFIG_SUPPORT_ALIEN_USB_CHARGER
+	USB_CHG_TYPE__MIGHT_BE_HOST_PC,
+	USB_CHG_TYPE__ALIENCHARGER,
+#endif /*  CONFIG_SUPPORT_ALIEN_USB_CHARGER */
 };
 #endif
 
@@ -188,6 +192,7 @@ struct msm_otg_platform_data {
 	void (*chg_connected)(enum chg_type chg_type);
 	void (*chg_vbus_draw)(unsigned ma);
 	int  (*chg_init)(int init);
+	int  (*chg_is_initialized)(void);
 };
 
 struct msm_usb_host_platform_data {

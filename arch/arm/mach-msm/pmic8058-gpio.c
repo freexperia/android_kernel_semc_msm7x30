@@ -290,7 +290,7 @@ static int __devinit pm8058_gpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, &pm8058_gpio_chip);
 
 	rc = register_gpio_chip(&pm8058_gpio_chip.gpio_chip);
-	if (!rc)
+	if (rc)
 		goto bail;
 
 	rc = pm8058_gpio_init_bank1(&pm8058_gpio_chip);

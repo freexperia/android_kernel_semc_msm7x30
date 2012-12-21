@@ -483,7 +483,6 @@ config LIBRA_SDIOIF
 	---help---
 	  A driver for Qualcomm WLAN SDIO Libra chipset.
 
-
 source "drivers/net/wireless/p54/Kconfig"
 source "drivers/net/wireless/ath/Kconfig"
 source "drivers/net/wireless/ipw2x00/Kconfig"

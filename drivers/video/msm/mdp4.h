@@ -365,6 +365,7 @@ void mdp4_lcdc_overlay(struct msm_fb_data_type *mfd);
 void mdp4_dtv_overlay(struct msm_fb_data_type *mfd);
 int mdp4_dtv_on(struct platform_device *pdev);
 int mdp4_dtv_off(struct platform_device *pdev);
+int mdp4_dtv_lcdc_enable(struct platform_device *pdev, int enable);
 void mdp4_atv_overlay(struct msm_fb_data_type *mfd);
 int mdp4_atv_on(struct platform_device *pdev);
 int mdp4_atv_off(struct platform_device *pdev);
@@ -433,5 +434,5 @@ void mdp_hw_cursor_done(void);
 void mdp_hw_cursor_init(void);
 
 int mdp_ppp_blit(struct fb_info *info, struct mdp_blit_req *req);
-
+void mdp_vsync_config_update(struct msm_panel_info *pinfo);
 #endif /* MDP_H */

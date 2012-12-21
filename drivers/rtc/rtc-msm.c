@@ -260,19 +260,22 @@ msmrtc_timeremote_set_time(struct device *dev, struct rtc_time *tm)
 {
 	int rc;
 	struct rtc_tod_args rtc_args;
+	struct rtc_time tm_req;
 
-	if (tm->tm_year < 1900)
-		tm->tm_year += 1900;
+	memcpy(&tm_req, tm, sizeof(struct rtc_time));
 
-	if (tm->tm_year < 1970)
+	if (tm_req.tm_year < 1900)
+		tm_req.tm_year += 1900;
+
+	if ((tm_req.tm_year < 1980) || (tm_req.tm_year > 2037))
 		return -EINVAL;
 
 	pr_debug("%s: %.2u/%.2u/%.4u %.2u:%.2u:%.2u (%.2u)\n",
-	       __func__, tm->tm_mon, tm->tm_mday, tm->tm_year,
-	       tm->tm_hour, tm->tm_min, tm->tm_sec, tm->tm_wday);
+	       __func__, tm_req.tm_mon, tm_req.tm_mday, tm_req.tm_year,
+	       tm_req.tm_hour, tm_req.tm_min, tm_req.tm_sec, tm_req.tm_wday);
 
 	rtc_args.proc = TIMEREMOTE_PROCEEDURE_SET_JULIAN;
-	rtc_args.tm = tm;
+	rtc_args.tm = &tm_req;
 	rc = msm_rpc_client_req(rpc_client, TIMEREMOTE_PROCEEDURE_SET_JULIAN,
 				msmrtc_tod_proc_args, &rtc_args,
 				NULL, NULL, -1);
@@ -300,6 +303,25 @@ msmrtc_timeremote_read_time(struct device *dev, struct rtc_time *tm)
 	if (rc) {
 		pr_err("%s: Error retrieving rtc (TOD) time\n", __func__);
 		return rc;
+	}
+
+	if ((tm->tm_year < 80) || (tm->tm_year > 137)) {
+		int rc;
+
+		tm->tm_year = 80;
+		tm->tm_mon = 0;
+		tm->tm_mday = 1;
+		tm->tm_hour = 0;
+		tm->tm_min = 0;
+		tm->tm_sec = 0;
+		tm->tm_wday = 2;
+
+		rc = msmrtc_timeremote_set_time(dev, tm);
+		if (rc < 0) {
+			pr_err("%s: Failed to set default "
+				"time and date.\n", __func__);
+			return rc;
+		}
 	}
 
 	return 0;
@@ -338,19 +360,22 @@ msmrtc_timeremote_set_time_secure(struct device *dev, struct rtc_time *tm)
 {
 	int rc;
 	struct rtc_tod_args rtc_args;
+	struct rtc_time tm_req;
 
-	if (tm->tm_year < 1900)
-		tm->tm_year += 1900;
+	memcpy(&tm_req, tm, sizeof(struct rtc_time));
 
-	if (tm->tm_year < 1970)
+	if (tm_req.tm_year < 1900)
+		tm_req.tm_year += 1900;
+
+	if ((tm_req.tm_year < 1980) || (tm_req.tm_year > 2037))
 		return -EINVAL;
 
 	pr_debug("%s: %.2u/%.2u/%.4u %.2u:%.2u:%.2u (%.2u)\n",
-	       __func__, tm->tm_mon, tm->tm_mday, tm->tm_year,
-	       tm->tm_hour, tm->tm_min, tm->tm_sec, tm->tm_wday);
+	       __func__, tm_req.tm_mon, tm_req.tm_mday, tm_req.tm_year,
+	       tm_req.tm_hour, tm_req.tm_min, tm_req.tm_sec, tm_req.tm_wday);
 
 	rtc_args.proc = TIMEREMOTE_PROCEEDURE_SET_SECURE_JULIAN;
-	rtc_args.tm = tm;
+	rtc_args.tm = &tm_req;
 
 	rc = msm_rpc_client_req(rpc_client,
 			TIMEREMOTE_PROCEEDURE_SET_SECURE_JULIAN,
@@ -380,6 +405,25 @@ msmrtc_timeremote_read_time_secure(struct device *dev, struct rtc_time *tm)
 	if (rc) {
 		pr_err("%s: Error retrieving secure rtc time\n", __func__);
 		return rc;
+	}
+
+	if ((tm->tm_year < 80) || (tm->tm_year > 137)) {
+		int rc;
+
+		tm->tm_year = 80;
+		tm->tm_mon = 0;
+		tm->tm_mday = 1;
+		tm->tm_hour = 0;
+		tm->tm_min = 0;
+		tm->tm_sec = 0;
+		tm->tm_wday = 2;
+
+		rc = msmrtc_timeremote_set_time(dev, tm);
+		if (rc < 0) {
+			pr_err("%s: Failed to set default "
+				"time and date.\n", __func__);
+			return rc;
+		}
 	}
 
 	return 0;

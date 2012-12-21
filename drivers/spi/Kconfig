@@ -208,6 +208,17 @@ config SPI_QSD
 	  This driver can also be built as a module.  If so, the module
 	  will be called spi_qsd.
 
+config SPI_QSD_RTQUEUE
+	bool "Use RT transaction prioritization"
+	default n
+	depends on SPI_QSD
+	help
+	  Select 'Y' to use a realtime workqueue for scheduling SPI
+	  transactions.  This will substantially reduce communications
+	  latency with SPI slaves by preempting all non-realtime user
+	  processes and kernel threads.  This may or may not be what
+	  you want.  If you aren't sure, select 'N'.
+
 config SPI_QUP
 	tristate "Qualcomm MSM SPI QUPe Support"
 	depends on ARCH_MSM8X60 && !SPI_QSD

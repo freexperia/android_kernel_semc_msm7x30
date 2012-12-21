@@ -1,4 +1,5 @@
 /* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+ * Copyright (C) 2010 Sony Ericsson Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -78,6 +79,19 @@ void *msm_gemini_hw_pingpong_active_buffer(
 
 	return (void *) buf_p;
 }
+
+#if defined(CONFIG_SEMC_CAMERA_MODULE) || defined(CONFIG_SEMC_SUB_CAMERA_MODULE)
+void *msm_gemini_hw_pingpong_nonactive_buffer(
+	struct msm_gemini_hw_pingpong *pingpong_hw)
+{
+	struct msm_gemini_hw_buf *buf_p = NULL;
+
+	if (pingpong_hw->buf_status[!pingpong_hw->buf_active_index])
+		buf_p = &pingpong_hw->buf[!pingpong_hw->buf_active_index];
+
+	return (void *) buf_p;
+}
+#endif
 
 struct msm_gemini_hw_cmd hw_cmd_irq_get_status[] = {
 	/* type, repeat n times, offset, mask, data or pdata */

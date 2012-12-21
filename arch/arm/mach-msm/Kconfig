@@ -38,6 +38,7 @@ config ARCH_MSM7X30
 	select ARCH_MEMORY_PROBE
 	select ARCH_MEMORY_REMOVE
 	select DONT_RESERVE_FROM_MOVABLE_ZONE
+	select ARCH_HAS_HOLES_MEMORYMODEL
 
 config ARCH_QSD8X50
 	bool "QSD8X50"
@@ -174,6 +175,16 @@ config MACH_MSM7X30_FLUID
        bool "MSM7x30 FLUID"
        help
          Support for the Qualcomm MSM7x30 FLUID eval board.
+
+config MACH_SEMC_HALLON
+	depends on ARCH_MSM7X30
+	depends on !MSM_STACKED_MEMORY
+	select TI1271
+	select SUPPORT_ALIEN_USB_CHARGER
+	default y
+	bool "SonyEricsson Hallon"
+	help
+	  Support for the SonyEricsson Hallon devices.
 
 config MACH_SAPPHIRE
 	depends on ARCH_MSM7X01A
@@ -373,6 +384,14 @@ choice
 	config MSM_AMSS_VERSION_6225
 		bool "6.2.20 + New ADSP"
 endchoice
+
+config TI1271
+	bool "Use connectivity driver and config for TI1271"
+	default n
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	help
+	  This option enables support for TI1271 Wilink driver.
 
 config MSM_DEBUG_UART
 	int
@@ -955,10 +974,11 @@ config MSM_DMA_TEST
 	  and ioctls for testing the MSM dma system.
 
 config WIFI_CONTROL_FUNC
+	depends on BCM4329
 	bool "Enable WiFi control function abstraction"
 	help
 	  Enables Power/Reset/Carddetect function abstraction
-	
+
 config WIFI_MEM_PREALLOC
 	depends on WIFI_CONTROL_FUNC
 	bool "Preallocate memory for WiFi buffers"
@@ -992,6 +1012,26 @@ config SURF_FFA_GPIO_KEYPAD
 	default y
 	help
 	  Select if the GPIO keypad is attached.
+
+config MOGAMI_SLIDER
+	bool "Mogami slider"
+	depends on INPUT_GPIO = "y"
+	default n
+	help
+	  Select if GPIO slider switch is attached.
+
+config MOGAMI_VIBRATOR
+	bool "Mogami Vibrator"
+	default n
+	help
+	  Select to get vibrator support on the Mogami board
+
+config MOGAMI_VIBRATOR_ON_VOLTAGE
+	int "Mogami Vibrator on voltage(mV)"
+	default "2700"
+	depends on MOGAMI_VIBRATOR
+	help
+	  Set value in milli voltage(mV). Default voltage is 2700mV.
 
 config CLOCK_BASED_SLEEP_LIMIT
 	default y
@@ -1214,5 +1254,80 @@ config MSM_WATCHDOG
 		core 0's watchdog, and reset the entire SoC if it times out. It does
 		not run during the bootup process, so it will not catch any early
 		lockups.
+
+config PMIC_TIME
+	bool "Export pmic time as sysfs entry"
+	depends on (ARCH_MSM)
+	default n
+	help
+	  This exports pmic time in a sysfs entry.
+
+config SEMC_RPC_SERVER_HANDSET
+	bool "Enable SEMC handset rpc dispatcher"
+	depends on ARCH_MSM7X30 && MSM_ONCRPCROUTER && !MSM_RPCSERVER_HANDSET
+	default y
+	help
+	 This enables the SEMC version of rpc_server_handset message dispatcher.
+	 This cannot cooperate with MSM_RPCSERVER_HANDSET. If this is set,
+	 an error will be generated.
+
+config SIMPLE_REMOTE_PLATFORM
+	bool "Simple Remote platform specific driver"
+	default n
+	help
+	  Provides support for detecting 3.5mm audio jack, such as wired
+	  headset. This is the platform specific layer.
+
+config ACC_CONVERTER_SUPPORT
+	bool "Enable support for acessory conversion"
+	depends on SIMPLE_REMOTE_PLATFORM
+	default n
+	help
+	  Enable support for special accessory that can convert
+	  CTIA connected headsets to OMTP connected headsets and
+	  vice versa.
+
+config CRADLE_SUPPORT
+	bool "This HW supports docking cradle"
+	depends on ACC_CONVERTER_SUPPORT
+	default n
+	help
+	  Provides support for docking cradle. Depends on simple remote
+	  HW specific driver.
+
+config USB_PRODUCT_SUFFIX
+	hex "Suffix of USB product id"
+	default 0
+
+config USB_HS_DRV_AMPLITUDE
+	int "USB high speed driver amplitude ratio"
+	range 0 4
+	default 0
+	help
+	  Set 0 if ratio is HS_DRV_AMPLITUDE_DEFAULT
+	  Set 1 if ratio is HS_DRV_AMPLITUDE_ZERO_PERCENT
+	  Set 2 if ratio is HS_DRV_AMPLITUDE_25_PERCENTI
+	  Set 3 if ratio is HS_DRV_AMPLITUDE_5_PERCENT
+	  Set 4 if ratio is HS_DRV_AMPLITUDE_75_PERCENT
+
+	  The ratio is defined in kernel\arch\arm\mach-msm\include\mach\msm_hsusb.h
+
+config PMIC_GPIO_25
+	bool "Enable PMIC_GPIO_25 support"
+	default n
+	help
+	  This enables the PMIC_GPIO_25 support.
+
+config USE_PMIC_CHARGING_ON_AMSS
+	bool "Charging functionality on PMIC on AMSS"
+	depends on ARCH_MSM7X30
+	default n
+
+config MOGAMI_PMIC_KEYPAD
+	bool "Enable Mogami pmic gpio keypad support"
+	depends on ARCH_MSM7X30
+	default n
+	help
+	  This enables the Mogami pmic gpio keypad support.
 
 endif

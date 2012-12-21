@@ -166,7 +166,7 @@ void mdp4_atv_overlay(struct msm_fb_data_type *mfd)
 	buf += fbi->var.xoffset * bpp +
 		fbi->var.yoffset * fbi->fix.line_length;
 
-	mutex_lock(&mfd->dma->ov_mutex);
+	down(&mfd->dma->ov_sem);
 
 	pipe = atv_pipe;
 	pipe->srcp0_addr = (uint32) buf;
@@ -190,5 +190,5 @@ void mdp4_atv_overlay(struct msm_fb_data_type *mfd)
 
 	mdp4_stat.kickoff_atv++;
 
-	mutex_unlock(&mfd->dma->ov_mutex);
+	up(&mfd->dma->ov_sem);
 }
