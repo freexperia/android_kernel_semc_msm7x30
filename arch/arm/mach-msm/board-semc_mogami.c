@@ -134,7 +134,7 @@ static struct platform_device ion_dev;
 
 #define PMIC_GPIO_INT		27
 #define PMIC_VREG_WLAN_LEVEL	2900
-#define PMIC_GPIO_SD_DET	36
+#define PMIC_GPIO_SD_DET	22
 #define PMIC_GPIO_SDC4_EN_N	17  /* PMIC GPIO Number 18 */
 #define PMIC_GPIO_HDMI_5V_EN_V3 32  /* PMIC GPIO for V3 H/W */
 #define PMIC_GPIO_HDMI_5V_EN_V2 39 /* PMIC GPIO for V2 H/W */
@@ -168,8 +168,12 @@ static struct platform_device ion_dev;
 
 #define	PM_FLIP_MPP 5 /* PMIC MPP 06 */
 
-#define DDR1_BANK_BASE 0X20000000
+#define DDR0_BANK_BASE PHYS_OFFSET
+#define DDR0_BANK_SIZE 0X03C00000
+#define DDR1_BANK_BASE 0X07400000
+#define DDR1_BANK_SIZE 0X08C00000
 #define DDR2_BANK_BASE 0X40000000
+#define DDR2_BANK_SIZE 0X10000000
 
 static unsigned int phys_add = DDR2_BANK_BASE;
 unsigned long ebi1_phys_offset = DDR2_BANK_BASE;
@@ -5357,7 +5361,7 @@ struct platform_device msm_device_sdio_al = {
 
 static struct platform_device *devices[] __initdata = {
 #if defined(CONFIG_SERIAL_MSM) || defined(CONFIG_MSM_SERIAL_DEBUGGER)
-	&msm_device_uart2,
+	&msm_device_uart3,
 #endif
 #ifdef CONFIG_MSM_PROC_COMM_REGULATOR
 	&msm_proccomm_regulator_dev,
@@ -6465,17 +6469,17 @@ static void __init msm7x30_init_nand(void)
 }
 
 #ifdef CONFIG_SERIAL_MSM_CONSOLE
-static struct msm_gpio uart2_config_data[] = {
-	{ GPIO_CFG(49, 2, GPIO_CFG_OUTPUT,  GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), "UART2_RFR"},
-	{ GPIO_CFG(50, 2, GPIO_CFG_INPUT,   GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), "UART2_CTS"},
-	{ GPIO_CFG(51, 2, GPIO_CFG_INPUT,   GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), "UART2_Rx"},
-	{ GPIO_CFG(52, 2, GPIO_CFG_OUTPUT,  GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), "UART2_Tx"},
+static struct msm_gpio uart3_config_data[] = {
+//	{ GPIO_CFG(49, 2, GPIO_CFG_OUTPUT,  GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), "UART2_RFR"},
+//	{ GPIO_CFG(50, 2, GPIO_CFG_INPUT,   GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), "UART2_CTS"},
+	{ GPIO_CFG(53, 1, GPIO_CFG_INPUT,   GPIO_CFG_PULL_UP, GPIO_CFG_2MA), "UART3_Rx"},
+	{ GPIO_CFG(54, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_4MA), "UART3_Tx"},
 };
 
-static void msm7x30_init_uart2(void)
+static void msm7x30_init_uart3(void)
 {
-	msm_gpios_request_enable(uart2_config_data,
-			ARRAY_SIZE(uart2_config_data));
+	msm_gpios_request_enable(uart3_config_data,
+			ARRAY_SIZE(uart3_config_data));
 
 }
 #endif
@@ -6949,7 +6953,7 @@ static void __init msm7x30_init(void)
 
 	msm_clock_init(&msm7x30_clock_init_data);
 #ifdef CONFIG_SERIAL_MSM_CONSOLE
-	msm7x30_init_uart2();
+	msm7x30_init_uart3();
 #endif
 	msm_spm_init(&msm_spm_data, 1);
 	platform_device_register(&msm7x30_device_acpuclk);
@@ -7016,7 +7020,9 @@ static void __init msm7x30_init(void)
 #endif
 
 	atv_dac_power_init();
+#ifdef CONFIG_BOSCH_BMA150
 	sensors_ldo_init();
+#endif
 	hdmi_init_regs();
 	msm_fb_add_devices();
 	msm_pm_set_platform_data(msm_pm_data, ARRAY_SIZE(msm_pm_data));
@@ -7360,17 +7366,16 @@ static void __init msm7x30_init_early(void)
 static void __init msm7x30_fixup(struct tag *tags, char **cmdline,
 				 struct meminfo *mi)
 {
-	for (; tags->hdr.size; tags = tag_next(tags)) {
-		if (tags->hdr.tag == ATAG_MEM && tags->u.mem.start ==
-							DDR1_BANK_BASE) {
-				ebi1_phys_offset = DDR1_BANK_BASE;
-				phys_add = DDR1_BANK_BASE;
-				break;
-		}
-	}
+    mi->nr_banks = 3;
+    mi->bank[0].start = DDR0_BANK_BASE;
+    mi->bank[0].size = DDR0_BANK_SIZE;
+    mi->bank[1].start = DDR1_BANK_BASE;
+    mi->bank[1].size = DDR1_BANK_SIZE;
+    mi->bank[2].start = DDR2_BANK_BASE;
+    mi->bank[2].size = DDR2_BANK_SIZE;
 }
 
-MACHINE_START(MSM7X30_SURF, "QCT MSM7X30 SURF")
+MACHINE_START(SEMC_MOGAMI, "mogami")
 	.atag_offset = 0x100,
 	.map_io = msm7x30_map_io,
 	.reserve = msm7x30_reserve,
@@ -7382,72 +7387,3 @@ MACHINE_START(MSM7X30_SURF, "QCT MSM7X30 SURF")
 	.fixup = msm7x30_fixup,
 MACHINE_END
 
-MACHINE_START(MSM7X30_FFA, "QCT MSM7X30 FFA")
-	.atag_offset = 0x100,
-	.map_io = msm7x30_map_io,
-	.reserve = msm7x30_reserve,
-	.init_irq = msm7x30_init_irq,
-	.init_machine = msm7x30_init,
-	.timer = &msm_timer,
-	.init_early = msm7x30_init_early,
-	.handle_irq = vic_handle_irq,
-	.fixup = msm7x30_fixup,
-MACHINE_END
-
-MACHINE_START(MSM7X30_FLUID, "QCT MSM7X30 FLUID")
-	.atag_offset = 0x100,
-	.map_io = msm7x30_map_io,
-	.reserve = msm7x30_reserve,
-	.init_irq = msm7x30_init_irq,
-	.init_machine = msm7x30_init,
-	.timer = &msm_timer,
-	.init_early = msm7x30_init_early,
-	.handle_irq = vic_handle_irq,
-	.fixup = msm7x30_fixup,
-MACHINE_END
-
-MACHINE_START(MSM8X55_SURF, "QCT MSM8X55 SURF")
-	.atag_offset = 0x100,
-	.map_io = msm7x30_map_io,
-	.reserve = msm7x30_reserve,
-	.init_irq = msm7x30_init_irq,
-	.init_machine = msm7x30_init,
-	.timer = &msm_timer,
-	.init_early = msm7x30_init_early,
-	.handle_irq = vic_handle_irq,
-	.fixup = msm7x30_fixup,
-MACHINE_END
-
-MACHINE_START(MSM8X55_FFA, "QCT MSM8X55 FFA")
-	.atag_offset = 0x100,
-	.map_io = msm7x30_map_io,
-	.reserve = msm7x30_reserve,
-	.init_irq = msm7x30_init_irq,
-	.init_machine = msm7x30_init,
-	.timer = &msm_timer,
-	.init_early = msm7x30_init_early,
-	.handle_irq = vic_handle_irq,
-	.fixup = msm7x30_fixup,
-MACHINE_END
-MACHINE_START(MSM8X55_SVLTE_SURF, "QCT MSM8X55 SVLTE SURF")
-	.atag_offset = 0x100,
-	.map_io = msm7x30_map_io,
-	.reserve = msm7x30_reserve,
-	.init_irq = msm7x30_init_irq,
-	.init_machine = msm7x30_init,
-	.timer = &msm_timer,
-	.init_early = msm7x30_init_early,
-	.handle_irq = vic_handle_irq,
-	.fixup = msm7x30_fixup,
-MACHINE_END
-MACHINE_START(MSM8X55_SVLTE_FFA, "QCT MSM8X55 SVLTE FFA")
-	.atag_offset = 0x100,
-	.map_io = msm7x30_map_io,
-	.reserve = msm7x30_reserve,
-	.init_irq = msm7x30_init_irq,
-	.init_machine = msm7x30_init,
-	.timer = &msm_timer,
-	.init_early = msm7x30_init_early,
-	.handle_irq = vic_handle_irq,
-	.fixup = msm7x30_fixup,
-MACHINE_END
