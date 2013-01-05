@@ -580,7 +580,7 @@ config MACH_MSM8625_EVT
 config MACH_MSM7X30_SURF
        depends on ARCH_MSM7X30
        depends on !MSM_STACKED_MEMORY
-       default y
+       default n
        bool "MSM7x30 SURF"
        help
          Support for the Qualcomm MSM7x30 SURF eval board.
@@ -588,7 +588,7 @@ config MACH_MSM7X30_SURF
 config MACH_MSM7X30_FFA
        depends on ARCH_MSM7X30
        depends on !MSM_STACKED_MEMORY
-       default y
+       default n
        bool "MSM7x30 FFA"
        help
          Support for the Qualcomm MSM7x30 FFA eval board.
@@ -596,10 +596,19 @@ config MACH_MSM7X30_FFA
 config MACH_MSM7X30_FLUID
        depends on ARCH_MSM7X30
        depends on !MSM_STACKED_MEMORY
-       default y
+       default n
        bool "MSM7x30 FLUID"
        help
          Support for the Qualcomm MSM7x30 FLUID eval board.
+
+config MACH_SEMC_HALLON
+       depends on ARCH_MSM7X30
+       depends on !MSM_STACKED_MEMORY
+       select SUPPORT_ALIEN_USB_CHARGER
+       default y
+       bool "SEMC_HALLON"
+       help
+         Support for the SEMC HALLON device.
 
 config MACH_SAPPHIRE
 	depends on ARCH_MSM7X01A
@@ -643,7 +652,7 @@ config MACH_MSM7X25_FFA
 config MACH_MSM8X55_SURF
        depends on ARCH_MSM7X30
        depends on !MSM_STACKED_MEMORY
-       default y
+       default n
        bool "MSM8X55 SURF"
        help
          Support for the Qualcomm MSM8x55 SURF eval board.
@@ -651,7 +660,7 @@ config MACH_MSM8X55_SURF
 config MACH_MSM8X55_FFA
        depends on ARCH_MSM7X30
        depends on !MSM_STACKED_MEMORY
-       default y
+       default n
        bool "MSM8X55 FFA"
        help
          Support for the Qualcomm MSM8x55 FFA eval board.
@@ -659,7 +668,7 @@ config MACH_MSM8X55_FFA
 config MACH_MSM8X55_SVLTE_FFA
        depends on ARCH_MSM7X30
        depends on !MSM_STACKED_MEMORY
-       default y
+       default n
        bool "MSM8X55 SVLTE FFA"
        help
          Support for the Qualcomm MSM8x55 SVLTE FFA eval board.
@@ -667,7 +676,7 @@ config MACH_MSM8X55_SVLTE_FFA
 config MACH_MSM8X55_SVLTE_SURF
        depends on ARCH_MSM7X30
        depends on !MSM_STACKED_MEMORY
-       default y
+       default n
        bool "MSM8X55 SVLTE SURF"
        help
          Support for the Qualcomm MSM8x55 SVLTE SURF eval board.
