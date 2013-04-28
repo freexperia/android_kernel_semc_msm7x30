@@ -480,6 +480,107 @@ static struct platform_device semc_rpc_handset_device = {
 	},
 };
 
+#ifdef CONFIG_MOGAMI_SLIDER
+
+static const struct gpio_event_direct_entry slider_mogami_gpio_map[] = {
+	{180, SW_LID},
+};
+
+static struct gpio_event_input_info slider_gpio_info = {
+	.info.func = gpio_event_input_func,
+	.flags = 0, /* GPIO event active low*/
+	.type = EV_SW,
+	.keymap = slider_mogami_gpio_map,
+	.keymap_size = ARRAY_SIZE(slider_mogami_gpio_map),
+};
+
+static struct gpio_event_info *slider_info[] = {
+	&slider_gpio_info.info,
+};
+
+static struct gpio_event_platform_data slider_data = {
+	.name		= "slider-mogami",
+	.info		= slider_info,
+	.info_count	= ARRAY_SIZE(slider_info),
+};
+
+struct platform_device slider_device_mogami = {
+	.name	= GPIO_EVENT_DEV_NAME,
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &slider_data,
+	},
+};
+
+#endif /* CONFIG_MOGAMI_SLIDER */
+
+static struct input_dev *input_dev_pwr_key = NULL;
+static void msm_pmic_pwr_key_rpc_callback(uint32_t key, uint32_t event)
+{
+	if (!input_dev_pwr_key)
+		return;
+	switch (key) {
+	case HS_PWR_K:
+		key = KEY_POWER;
+		break;
+	case HS_END_K:
+		key = KEY_END;
+		break;
+	default:
+		return;
+	}
+	input_report_key(input_dev_pwr_key, key, event != HS_REL_K);
+	input_sync(input_dev_pwr_key);
+}
+
+static int __init msm_pmic_pwr_key_init(void)
+{
+	input_dev_pwr_key = input_allocate_device();
+	if (!input_dev_pwr_key) {
+		printk(KERN_ERR "%s: Error, unable to alloc pwr key device\n",
+			__func__);
+		return -1;
+	}
+	input_dev_pwr_key->name = "msm_pmic_pwr_key";
+	input_dev_pwr_key->phys = "semc_rpc_server_handset";
+	input_set_capability(input_dev_pwr_key, EV_KEY, KEY_POWER);
+	input_set_capability(input_dev_pwr_key, EV_KEY, KEY_END);
+	if (input_register_device(input_dev_pwr_key)) {
+		printk(KERN_ERR "%s: Error, unable to reg pwr key device\n",
+			__func__);
+		input_free_device(input_dev_pwr_key);
+		return -1;
+	}
+	return 0;
+}
+module_init(msm_pmic_pwr_key_init);
+
+/*
+ * Add callbacks here. Every defined callback will receive
+ * all events. The types are defined in the file
+ * semc_rpc_server_handset.h
+ */
+
+static handset_cb_array_t semc_rpc_hs_callbacks = {
+	&msm_pmic_pwr_key_rpc_callback,
+#ifdef CONFIG_SIMPLE_REMOTE_PLATFORM
+	&simple_remote_pf_button_handler,
+#endif
+};
+
+static struct semc_handset_data semc_rpc_hs_data = {
+	.callbacks = semc_rpc_hs_callbacks,
+	.num_callbacks = ARRAY_SIZE(semc_rpc_hs_callbacks),
+};
+
+static struct platform_device semc_rpc_handset_device = {
+	.name = SEMC_HANDSET_DRIVER_NAME,
+	.id = -1,
+	.dev = {
+		.platform_data = &semc_rpc_hs_data,
+	},
+};
+
 struct pm8xxx_gpio_init_info {
 	unsigned			gpio;
 	struct pm_gpio			config;
