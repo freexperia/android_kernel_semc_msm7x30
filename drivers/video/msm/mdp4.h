@@ -926,6 +926,7 @@ void mdp_hw_cursor_done(void);
 void mdp_hw_cursor_init(void);
 int mdp4_mddi_overlay_cursor(struct fb_info *info, struct fb_cursor *cursor);
 int mdp_ppp_blit(struct fb_info *info, struct mdp_blit_req *req);
+void mdp_vsync_config_update(struct msm_panel_info *pinfo);
 void mdp4_overlay_resource_release(void);
 uint32_t mdp4_ss_table_value(int8_t param, int8_t index);
 void mdp4_overlay_borderfill_stage_down(struct mdp4_overlay_pipe *pipe);
