@@ -1262,6 +1262,9 @@ static uint32_t audio_pamp_gpio_config =
 static uint32_t HAC_amp_gpio_config =
    GPIO_CFG(109, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA);
 
+static uint32_t HAC_amp_gpio_config =
+   GPIO_CFG(109, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA);
+
 static int __init snddev_poweramp_gpio_init(void)
 {
 	int rc;
@@ -1377,6 +1380,16 @@ static int __init aux_pcm_gpio_init(void)
 				__func__, aux_pcm_gpio_on[pin], rc);
 		}
 	}
+
+	/* Enabling HAC amplifier */
+	rc = gpio_tlmm_config(HAC_amp_gpio_config, GPIO_CFG_ENABLE);
+	if (rc) {
+		printk(KERN_ERR
+			"%s: gpio_tlmm_config(%#x)=%d\n",
+			__func__, HAC_amp_gpio_config, rc);
+	}
+
+
 	return rc;
 }
 
