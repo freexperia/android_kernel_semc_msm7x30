@@ -3491,8 +3491,8 @@ static struct msm_panel_common_pdata mdp_pdata = {
 	.hw_revision_addr = 0xac001270,
 	.gpio = 30,
 	.mdp_max_clk = 192000000,
-	//.mdp_rev = MDP_REV_40,
-	//.mem_hid = MEMTYPE_EBI0,
+	.mdp_rev = MDP_REV_40,
+	.mem_hid = MEMTYPE_EBI0,
 };
 
 static struct regulator *atv_s4, *atv_ldo9;
