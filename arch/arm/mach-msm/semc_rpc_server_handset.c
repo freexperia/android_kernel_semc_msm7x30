@@ -474,7 +474,7 @@ static int hs_cb_func(struct msm_rpc_client *client, void *buffer, int in_size)
 	return 0;
 }
 
-static int __init hs_rpc_cb_init(void)
+static int __devinit hs_rpc_cb_init(void)
 {
 	int rc = 0;
 	int i;

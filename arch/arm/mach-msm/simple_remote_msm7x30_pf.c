@@ -28,7 +28,7 @@
 #include <linux/mfd/marimba.h>
 #include <mach/vreg.h>
 #include <linux/mfd/msm-adie-codec.h>
-
+#include <linux/gpio.h>
 #ifdef CONFIG_ACC_CONVERTER_SUPPORT
 #include <linux/delay.h>
 #include <linux/workqueue.h>
@@ -47,7 +47,7 @@
 /* Add all includes specifically required by the adaptor here */
 #endif
 
-#include "proc_comm.h"
+#include <mach/proc_comm.h>
 #include <linux/simple_remote.h>
 #include <mach/simple_remote_msm7x30_pf.h>
 

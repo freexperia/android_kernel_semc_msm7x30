@@ -12,7 +12,6 @@
  */
 
 #include <mach/gpio.h>
-#include <linux/battery_chargalg.h>
 #include <linux/mfd/pmic8058.h>
 #include <linux/leds-as3676.h>
 #include <linux/leds.h>

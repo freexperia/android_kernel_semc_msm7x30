@@ -21,6 +21,7 @@
 #include <linux/sched.h>
 
 #include <mach/msm_rpcrouter.h>
+#include <linux/module.h>
 
 #define PM_LIBPROG 0x30000061
 

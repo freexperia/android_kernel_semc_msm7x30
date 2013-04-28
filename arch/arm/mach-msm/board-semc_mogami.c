@@ -79,7 +79,7 @@
 #ifdef CONFIG_INPUT_BMA150
 #include <linux/bma150.h>
 #endif
-#if defined CONFIG_INPUT_BMA150_NG
+#ifdef CONFIG_INPUT_BMA150_NG
 #include <linux/bma150_ng.h>
 #endif
 #ifdef CONFIG_INPUT_BMA250
@@ -92,6 +92,7 @@
 #include <linux/lm356x.h>
 #define LM356X_HW_RESET_GPIO 2
 #endif
+
 #include <mach/mddi_novatek_fwvga.h>
 #if defined(CONFIG_FB_MSM_MDDI_SONY_HVGA_LCD)
 #include <linux/mddi_sony_s6d05a1_hvga.h>
@@ -161,10 +162,6 @@
 #include <mach/sdio_al.h>
 #include "smd_private.h"
 #include <mach/semc_rpc_server_handset.h>
-#include <linux/i2c/bq24185_charger.h>
-#include <linux/i2c/bq27520_battery_semc.h>
-#include <linux/battery_chargalg.h>
-#include <mach/semc_battery_data.h>
 
 #define BQ24185_GPIO_IRQ		(31)
 #define CYPRESS_TOUCH_GPIO_RESET	(40)
@@ -269,7 +266,6 @@ static struct platform_device ion_dev;
 #define VREG_L15	"gp6"	/* LCD */
 #define VREG_L20	"gp13"	/* Touch */
 
-extern void msm_init_pmic_vibrator(void);
 
 /* Platform specific HW-ID GPIO mask */
 static const u8 hw_id_gpios[] = {150, 149, 148, 43};
@@ -277,6 +273,8 @@ static const u8 hw_id_gpios[] = {150, 149, 148, 43};
 static unsigned int phys_add = DDR2_BANK_BASE;
 unsigned long ebi1_phys_offset = DDR2_BANK_BASE;
 EXPORT_SYMBOL(ebi1_phys_offset);
+
+extern void msm_init_pmic_vibrator(void);
 
 static int vreg_helper_on(const char *pzName, unsigned mv)
 {
@@ -378,107 +376,6 @@ static void __init hw_id_class_init(void)
 		class_unregister(&hwid_class);
 	}
 }
-
-#ifdef CONFIG_MOGAMI_SLIDER
-
-static const struct gpio_event_direct_entry slider_mogami_gpio_map[] = {
-	{180, SW_LID},
-};
-
-static struct gpio_event_input_info slider_gpio_info = {
-	.info.func = gpio_event_input_func,
-	.flags = 0, /* GPIO event active low*/
-	.type = EV_SW,
-	.keymap = slider_mogami_gpio_map,
-	.keymap_size = ARRAY_SIZE(slider_mogami_gpio_map),
-};
-
-static struct gpio_event_info *slider_info[] = {
-	&slider_gpio_info.info,
-};
-
-static struct gpio_event_platform_data slider_data = {
-	.name		= "slider-mogami",
-	.info		= slider_info,
-	.info_count	= ARRAY_SIZE(slider_info),
-};
-
-struct platform_device slider_device_mogami = {
-	.name	= GPIO_EVENT_DEV_NAME,
-	.id	= -1,
-	.dev	= {
-		.platform_data	= &slider_data,
-	},
-};
-
-#endif /* CONFIG_MOGAMI_SLIDER */
-
-static struct input_dev *input_dev_pwr_key = NULL;
-static void msm_pmic_pwr_key_rpc_callback(uint32_t key, uint32_t event)
-{
-	if (!input_dev_pwr_key)
-		return;
-	switch (key) {
-	case HS_PWR_K:
-		key = KEY_POWER;
-		break;
-	case HS_END_K:
-		key = KEY_END;
-		break;
-	default:
-		return;
-	}
-	input_report_key(input_dev_pwr_key, key, event != HS_REL_K);
-	input_sync(input_dev_pwr_key);
-}
-
-static int __init msm_pmic_pwr_key_init(void)
-{
-	input_dev_pwr_key = input_allocate_device();
-	if (!input_dev_pwr_key) {
-		printk(KERN_ERR "%s: Error, unable to alloc pwr key device\n",
-			__func__);
-		return -1;
-	}
-	input_dev_pwr_key->name = "msm_pmic_pwr_key";
-	input_dev_pwr_key->phys = "semc_rpc_server_handset";
-	input_set_capability(input_dev_pwr_key, EV_KEY, KEY_POWER);
-	input_set_capability(input_dev_pwr_key, EV_KEY, KEY_END);
-	if (input_register_device(input_dev_pwr_key)) {
-		printk(KERN_ERR "%s: Error, unable to reg pwr key device\n",
-			__func__);
-		input_free_device(input_dev_pwr_key);
-		return -1;
-	}
-	return 0;
-}
-module_init(msm_pmic_pwr_key_init);
-
-/*
- * Add callbacks here. Every defined callback will receive
- * all events. The types are defined in the file
- * semc_rpc_server_handset.h
- */
-
-static handset_cb_array_t semc_rpc_hs_callbacks = {
-	&msm_pmic_pwr_key_rpc_callback,
-#ifdef CONFIG_SIMPLE_REMOTE_PLATFORM
-	&simple_remote_pf_button_handler,
-#endif
-};
-
-static struct semc_handset_data semc_rpc_hs_data = {
-	.callbacks = semc_rpc_hs_callbacks,
-	.num_callbacks = ARRAY_SIZE(semc_rpc_hs_callbacks),
-};
-
-static struct platform_device semc_rpc_handset_device = {
-	.name = SEMC_HANDSET_DRIVER_NAME,
-	.id = -1,
-	.dev = {
-		.platform_data = &semc_rpc_hs_data,
-	},
-};
 
 #ifdef CONFIG_MOGAMI_SLIDER
 
@@ -1262,9 +1159,6 @@ static uint32_t audio_pamp_gpio_config =
 static uint32_t HAC_amp_gpio_config =
    GPIO_CFG(109, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA);
 
-static uint32_t HAC_amp_gpio_config =
-   GPIO_CFG(109, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA);
-
 static int __init snddev_poweramp_gpio_init(void)
 {
 	int rc;
@@ -1294,6 +1188,14 @@ void msm_snddev_tx_route_config(void)
 }
 
 void msm_snddev_tx_route_deconfig(void)
+{
+}
+
+void msm_hac_amp_on(void)
+{
+}
+
+void msm_hac_amp_off(void)
 {
 }
 
@@ -2573,134 +2475,6 @@ static struct clearpad_platform_data clearpad_platform_data = {
 };
 #endif
 
-/* Driver(s) to be notified upon change in battery data */
-static char *semc_bdata_supplied_to[] = {
-	BQ27520_NAME,
-	BATTERY_CHARGALG_NAME,
-};
-
-static struct semc_battery_platform_data semc_battery_platform_data = {
-	.supplied_to = semc_bdata_supplied_to,
-	.num_supplicants = ARRAY_SIZE(semc_bdata_supplied_to),
-#ifndef CONFIG_BATTERY_BQ27520
-	.use_fuelgauge = 1,
-#endif
-};
-
-static struct platform_device bdata_driver = {
-	.name = SEMC_BDATA_NAME,
-	.id = -1,
-	.dev = {
-		.platform_data = &semc_battery_platform_data,
-	},
-};
-
-/* Driver(s) to be notified upon change in fuelgauge data */
-static char *bq27520_supplied_to[] = {
-	BATTERY_CHARGALG_NAME,
-};
-
-static struct bq27520_block_table bq27520_block_table[BQ27520_BTBL_MAX] = {
-	{0x61, 0x00}, {0x3E, 0x24}, {0x3F, 0x00}, {0x42, 0x00},
-	{0x43, 0x46}, {0x44, 0x00}, {0x45, 0x19}, {0x46, 0x00},
-	{0x47, 0x64}, {0x48, 0x28}, {0x4B, 0xFF}, {0x4C, 0x5F},
-	{0x60, 0xF4}
-};
-
-struct bq27520_platform_data bq27520_platform_data = {
-	.name = BQ27520_NAME,
-	.supplied_to = bq27520_supplied_to,
-	.num_supplicants = ARRAY_SIZE(bq27520_supplied_to),
-	.lipo_bat_max_volt = LIPO_BAT_MAX_VOLTAGE,
-	.lipo_bat_min_volt = LIPO_BAT_MIN_VOLTAGE,
-#ifdef CONFIG_BATTERY_BQ27520
-	.battery_dev_name = SEMC_BDATA_NAME,
-#endif
-	.polling_lower_capacity = FULLY_CHARGED_AND_RECHARGE_CAP,
-	.polling_upper_capacity = 100,
-	.udatap = bq27520_block_table,
-#ifdef CONFIG_BATTERY_CHARGALG
-	.disable_algorithm = battery_chargalg_disable,
-#endif
-};
-
-/* Driver(s) to be notified upon change in charging */
-static char *bq24185_supplied_to[] = {
-	BATTERY_CHARGALG_NAME,
-	SEMC_BDATA_NAME,
-};
-
-struct bq24185_platform_data bq24185_platform_data = {
-	.name = BQ24185_NAME,
-	.supplied_to = bq24185_supplied_to,
-	.num_supplicants = ARRAY_SIZE(bq24185_supplied_to),
-	.support_boot_charging = 1,
-	.rsens = BQ24185_RSENS_REF,
-	/* Maximum battery regulation voltage = 4200mV */
-	.mbrv = BQ24185_MBRV_MV_4200,
-	/* Maximum charger current sense voltage = 71.4mV */
-	.mccsv = BQ24185_MCCSV_MV_6p8 | BQ24185_MCCSV_MV_27p2 |
-		BQ24185_MCCSV_MV_37p4,
-#ifdef CONFIG_USB_MSM_OTG_72K
-	//.notify_vbus_drop = msm_otg_notify_vbus_drop,
-#endif
-};
-
-static struct battery_regulation_vs_temperature id_bat_reg = {
-	/* Cold, Normal, Warm, Overheat */
-	{5, 45,		55,	127},	/* temp */
-	{0, 4200,	4000,	0},	/* volt */
-	{0, USHORT_MAX,	400,	0},	/* curr */
-};
-
-/* Driver(s) to be notified upon change in algorithm */
-static char *battery_chargalg_supplied_to[] = {
-	SEMC_BDATA_NAME,
-};
-
-static struct battery_chargalg_platform_data battery_chargalg_platform_data = {
-	.name = BATTERY_CHARGALG_NAME,
-	.supplied_to = battery_chargalg_supplied_to,
-	.num_supplicants = ARRAY_SIZE(battery_chargalg_supplied_to),
-	.overvoltage_max_design = 4225,
-	.id_bat_reg = &id_bat_reg,
-	.ext_eoc_recharge_enable = 1,
-	.temp_hysteresis_design = 3,
-	.ddata = &device_data,
-	.batt_volt_psy_name = BQ27520_NAME,
-	.batt_curr_psy_name = BQ27520_NAME,
-
-#ifdef CONFIG_CHARGER_BQ24185
-	.turn_on_charger = bq24185_turn_on_charger,
-	.turn_off_charger = bq24185_turn_off_charger,
-	.set_charger_voltage = bq24185_set_charger_voltage,
-	.set_charger_current = bq24185_set_charger_current,
-	.set_input_current_limit = bq24185_set_input_current_limit,
-	.set_charging_status = bq24185_set_ext_charging_status,
-#endif
-	//.get_supply_current_limit = hsusb_get_chg_current_ma,
-	.allow_dynamic_charge_current_ctrl = 1,
-	.charge_set_current_1 = 350,
-	.charge_set_current_2 = 550,
-	.charge_set_current_3 = 750,
-	.average_current_min_limit = -1,
-	.average_current_max_limit = 250,
-};
-
-static struct platform_device battery_chargalg_platform_device = {
-	.name = BATTERY_CHARGALG_NAME,
-	.id = -1,
-	.dev = {
-		.platform_data = &battery_chargalg_platform_data,
-	},
-};
-
-/* Driver(s) to be notified upon change in USB 
-static char *hsusb_chg_supplied_to[] = {
-	BATTERY_CHARGALG_NAME,
-	BQ27520_NAME,
-};*/
-
 #if defined(CONFIG_LM3560) || defined(CONFIG_LM3561)
 int lm356x_request_gpio_pins(void)
 {
@@ -2893,18 +2667,6 @@ static struct i2c_board_info msm_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("as3676", 0x80 >> 1),
 		.platform_data = &as3676_platform_data,
-	},
-	{
-		I2C_BOARD_INFO(BQ27520_NAME, 0xAA >> 1),
-		.irq = MSM_GPIO_TO_INT(GPIO_BQ27520_SOC_INT),
-		.platform_data = &bq27520_platform_data,
-		.type = BQ27520_NAME,
-	},
-	{
-		I2C_BOARD_INFO(BQ24185_NAME, 0xd6 >> 1),
-		.platform_data = &bq24185_platform_data,
-		.type = BQ24185_NAME,
-		.irq = PM8058_GPIO_IRQ(PMIC8058_IRQ_BASE, BQ24185_GPIO_IRQ - 1),
 	},
 #ifdef CONFIG_INPUT_BMA150
 	{ /* TODO: Remove? Added due to wrong bus connection on Anzu SP1. */
@@ -4528,47 +4290,17 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_SEMC_SUB_CAMERA_MODULE
 	&msm_camera_sensor_semc_sub_camera,
 #endif
-#ifndef CONFIG_MSM_CAMERA_V4L2
-#ifdef CONFIG_MT9T013
-	&msm_camera_sensor_mt9t013,
-#endif
-#ifdef CONFIG_MT9D112
-	&msm_camera_sensor_mt9d112,
-#endif
-#ifdef CONFIG_WEBCAM_OV9726
-	&msm_camera_sensor_ov9726,
-#endif
-#ifdef CONFIG_S5K3E2FX
-	&msm_camera_sensor_s5k3e2fx,
-#endif
-#ifdef CONFIG_MT9P012
-	&msm_camera_sensor_mt9p012,
-#endif
-#ifdef CONFIG_MT9E013
-	&msm_camera_sensor_mt9e013,
-#endif
-#ifdef CONFIG_VX6953
-	&msm_camera_sensor_vx6953,
-#endif
-#ifdef CONFIG_SN12M0PZ
-	&msm_camera_sensor_sn12m0pz,
-#endif
-#endif
 	&msm_device_vidc_720p,
 #ifdef CONFIG_MSM_GEMINI
 	&msm_gemini_device,
 #endif
-#ifndef CONFIG_MSM_CAMERA_V4L2
 #ifdef CONFIG_MSM_VPE
 	&msm_vpe_device,
-#endif
-	&bdata_driver,
 #endif
 #ifdef CONFIG_SIMPLE_REMOTE_PLATFORM
 	&simple_remote_pf_device,
 #endif
 	&novatek_device,
-	&battery_chargalg_platform_device,
 #if defined(CONFIG_FB_MSM_MDDI_SONY_HVGA_LCD)
 	&mddi_sony_hvga_display_device,
 #endif
@@ -5883,9 +5615,6 @@ static void __init msm7x30_init(void)
 	mogami_temp_fixups();
 #ifdef CONFIG_USB_EHCI_MSM_72K
 	msm_add_host(0, &msm_usb_host_pdata);
-#endif
-#ifdef CONFIG_MSM_CAMERA_V4L2
-	msm7x30_init_cam();
 #endif
 	msm7x30_init_mmc();
 	msm7x30_init_nand();

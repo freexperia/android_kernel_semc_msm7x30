@@ -431,7 +431,7 @@ MSM_FB_DEBUG("msm_fb_probe 3\n");
 			lcd_backlight_registered = 1;
 	}
 #endif
-
+#endif
 	pdev_list[pdev_list_cnt++] = pdev;
 	msm_fb_create_sysfs(pdev);
 	if (mfd->timeline == NULL) {
@@ -932,6 +932,9 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		if (!mfd->panel_power_on) {
+			msleep(16);
+			if (pdata->controller_on_panel_on)
+				pdata->power_on_panel_at_pan = 1;
 			ret = pdata->on(mfd->pdev);
 			if (ret == 0) {
 				mfd->panel_power_on = TRUE;
@@ -1226,14 +1229,20 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	var->yoffset = 0,	/* resolution */
 	var->grayscale = 0,	/* No graylevels */
 	var->nonstd = 0,	/* standard pixel format */
-	var->activate = FB_ACTIVATE_VBL,	/* activate it at vsync */
-#if defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_WXGA_PT)
-	var->height = 102,      /* height of picture in mm */
-	var->width = 61,        /* width of picture in mm */
-#else
-	var->height = -1,	/* height of picture in mm */
-	var->width = -1,	/* width of picture in mm */
-#endif
+	var->activate = FB_ACTIVATE_VBL;	/* activate it at vsync */
+
+	/* height of picture in mm */
+	if (panel_info->height == 0)
+		var->height = -1;
+	else
+		var->height = panel_info->height;
+
+	/* width of picture in mm */
+	if (panel_info->width == 0)
+		var->width = -1;
+	else
+		var->width = panel_info->width;
+
 	var->accel_flags = 0,	/* acceleration flags */
 	var->sync = 0,	/* see FB_SYNC_* */
 	var->rotate = 0,	/* angle we rotate counter clockwise */
@@ -1588,9 +1597,12 @@ MSM_FB_DEBUG("msm_fb_register 8\n");
 		msm_fb_pdata->update_lcdc_lut();
 #endif
 #ifdef CONFIG_FB_MSM_LOGO
-	/* Flip buffer */
-	if (!load_565rle_image(INIT_IMAGE_FILE, bf_supported))
-		;
+	if (mfd->index == 0) {
+		if (!load_565rle_image(INIT_IMAGE_FILE, bf_supported)) {
+			msm_fb_open(fbi, 0);
+			msm_fb_pan_display(var, fbi);
+		}	/* Flip buffer */
+	}
 #endif
 	ret = 0;
 
@@ -2008,7 +2020,8 @@ static int msm_fb_pan_display_sub(struct fb_var_screeninfo *var,
 	if (mfd->msmfb_no_update_notify_timer.function)
 		del_timer(&mfd->msmfb_no_update_notify_timer);
 
-	mfd->msmfb_no_update_notify_timer.expires = jiffies + (2 * HZ);
+	mfd->msmfb_no_update_notify_timer.expires =
+				jiffies + ((1000 * HZ) / 1000);
 	add_timer(&mfd->msmfb_no_update_notify_timer);
 	mutex_unlock(&msm_fb_notify_update_sem);
 
@@ -2028,12 +2041,17 @@ static int msm_fb_pan_display_sub(struct fb_var_screeninfo *var,
 	}
 
 	mdp_set_dma_pan_info(info, dirtyPtr,
-			     (var->activate & FB_ACTIVATE_VBL));
+			     (var->activate == FB_ACTIVATE_VBL));
 	/* async call */
 
 	mdp_dma_pan_update(info);
 	msm_fb_signal_timeline(mfd);
 	up(&msm_fb_pan_sem);
+
+	if (pdata->power_on_panel_at_pan) {
+		pdata->controller_on_panel_on(mfd->pdev);
+		pdata->power_on_panel_at_pan = 0;
+	}
 
 	if (unset_bl_level && !bl_updated) {
 		pdata = (struct msm_fb_panel_data *)mfd->pdev->
@@ -3212,7 +3230,8 @@ static int msmfb_overlay_play(struct fb_info *info, unsigned long *argp)
 	int	ret;
 	struct msmfb_overlay_data req;
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
-	struct msm_fb_panel_data *pdata;
+	struct msm_fb_panel_data *pdata  =(struct msm_fb_panel_data *)mfd->panel_pdev->
+			dev.platform_data;;
 
 	if (mfd->overlay_play_enable == 0)	/* nothing to do */
 		return 0;
@@ -3240,7 +3259,8 @@ static int msmfb_overlay_play(struct fb_info *info, unsigned long *argp)
 	if (mfd->msmfb_no_update_notify_timer.function)
 		del_timer(&mfd->msmfb_no_update_notify_timer);
 
-	mfd->msmfb_no_update_notify_timer.expires = jiffies + (2 * HZ);
+	mfd->msmfb_no_update_notify_timer.expires =
+				jiffies + ((1000 * HZ) / 1000);
 	add_timer(&mfd->msmfb_no_update_notify_timer);
 	mutex_unlock(&msm_fb_notify_update_sem);
 
@@ -3251,8 +3271,10 @@ static int msmfb_overlay_play(struct fb_info *info, unsigned long *argp)
 		pdata->power_on_panel_at_pan = 0;
 	}
 
+	ret = mdp4_overlay_play(info, &req);
+
 	if (unset_bl_level && !bl_updated) {
-		pdata = (struct msm_fb_panel_data *)mfd->pdev->
+		pdata = (struct msm_fb_panel_data *)mfd->panel_pdev->
 			dev.platform_data;
 		if ((pdata) && (pdata->set_backlight)) {
 			down(&mfd->sem);

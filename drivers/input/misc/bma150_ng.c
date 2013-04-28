@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/bma150_ng.h>
+#include <linux/module.h>
 
 #define BMA150_REG_CHIPID		0x00
 #define BMA150_REG_ACCX_LS		0x02
