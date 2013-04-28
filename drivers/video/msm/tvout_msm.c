@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2011, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -254,7 +254,7 @@ static int tvout_on(struct platform_device *pdev)
 
 	var = &mfd->fbi->var;
 	userformat = var->reserved[3] >> 16;
-	if (userformat >= NTSC_M && userformat <= PAL_N)
+	if (var->reserved[3] >= NTSC_M && userformat <= PAL_N)
 		external_common_state->video_resolution = userformat;
 
 	tvout_msm_state->pdev = pdev;

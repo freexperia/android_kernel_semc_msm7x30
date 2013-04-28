@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2010, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -183,7 +183,7 @@ extern u32 msm_fb_msg_level;
 	if (msm_fb_msg_level > 6)  \
 		printk(KERN_INFO msg, ## __VA_ARGS__);
 #define MSM_FB_DEBUG(msg, ...)    \
-	if (msm_fb_msg_level > 0)  \
+	if (msm_fb_msg_level > 7)  \
 		printk(KERN_DEBUG msg, ## __VA_ARGS__);
 
 #ifdef MSM_FB_C

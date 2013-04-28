@@ -206,7 +206,8 @@ static struct msm_fb_panel_data *get_panel_info(void)
 	novatek_panel_data.panel_info.lcd.v_front_porch = 4;
 	novatek_panel_data.panel_info.lcd.v_pulse_width = 0;
 	novatek_panel_data.panel_info.lcd.vsync_notifier_period = 0;
-
+	novatek_panel_data.panel_info.lcd.vsync_enable = false;
+	novatek_panel_data.panel_info.lcd.hw_vsync_mode = false;
 	return &novatek_panel_data;
 }
 

@@ -1,4 +1,6 @@
-/* Copyright (c) 2009-2013, The Linux Foundation. All rights reserved.
+/*
+ * Copyright (c) 2009-2012, Code Aurora Forum. All rights reserved.
+ * Copyright (C) 2012 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -40,6 +42,7 @@
 #include "mdp.h"
 #include "msm_fb.h"
 #include "mdp4.h"
+#include <linux/msm_ion.h>
 
 #define VERSION_KEY_MASK	0xFFFFFF00
 
@@ -193,19 +196,12 @@ void mdp4_overlay_iommu_pipe_free(int ndx, int all)
 	if (pipe->flags & MDP_MEMORY_ID_TYPE_FB) {
 		pipe->flags &= ~MDP_MEMORY_ID_TYPE_FB;
 
-		if (pipe->put0_need) {
-			fput_light(pipe->srcp0_file, pipe->put0_need);
-			pipe->put0_need = 0;
-		}
-		if (pipe->put1_need) {
-			fput_light(pipe->srcp1_file, pipe->put1_need);
-			pipe->put1_need = 0;
-		}
-		if (pipe->put2_need) {
-			fput_light(pipe->srcp2_file, pipe->put2_need);
-			pipe->put2_need = 0;
-		}
-
+		fput_light(pipe->srcp0_file, pipe->put0_need);
+		pipe->put0_need = 0;
+		fput_light(pipe->srcp1_file, pipe->put1_need);
+		pipe->put1_need = 0;
+		fput_light(pipe->srcp2_file, pipe->put2_need);
+		pipe->put2_need = 0;
 		pr_debug("%s: ndx=%d flags=%x put=%d\n", __func__,
 			pipe->pipe_ndx, pipe->flags, pipe->put0_need);
 		return;
@@ -401,34 +397,53 @@ void mdp4_overlay_dmae_cfg(struct msm_fb_data_type *mfd, int atv)
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 }
 
-void fill_black_screen(bool on, uint8 pipe_num, uint8 mixer_num)
+#ifdef CONFIG_FB_MSM_HDMI_3D
+void unfill_black_screen(void) { return; }
+#else
+void unfill_black_screen(void)
 {
-	uint32 reg_base        = 0x010000;
-	uint32 const_color_reg = reg_base * (pipe_num + 2) + 0x1008;
-	uint32 src_fmt_reg     = reg_base * (pipe_num + 2) + 0x50;
-	uint32 color           = 0x00000000;
-	uint32 temp_src_format = 0x00000000;
-	uint8  bit             = pipe_num + 2;
-
+	uint32 temp_src_format;
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-
-	/* Fill constant color */
-	MDP_OUTP(MDP_BASE + const_color_reg, color);
-
-	/* Update source format for pipe */
-	temp_src_format = inpdw(MDP_BASE + src_fmt_reg);
-
-	if (on)
-		MDP_OUTP(MDP_BASE + src_fmt_reg, temp_src_format | BIT(22));
-	else
-		MDP_OUTP(MDP_BASE + src_fmt_reg, temp_src_format | (~BIT(22)));
-
-	/* MDP_OVERLAY_REG_FLUSH for pipe*/
-	MDP_OUTP(MDP_BASE + 0x18000, BIT(bit) | BIT(mixer_num));
+	/*
+	* VG2 Constant Color
+	*/
+	temp_src_format = inpdw(MDP_BASE + 0x30050);
+	MDP_OUTP(MDP_BASE + 0x30050, temp_src_format&(~BIT(22)));
+	/*
+	* MDP_OVERLAY_REG_FLUSH
+	*/
+	MDP_OUTP(MDP_BASE + 0x18000, BIT(3));
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-
 	return;
 }
+#endif
+
+#ifdef CONFIG_FB_MSM_HDMI_3D
+void fill_black_screen(void) { return; }
+#else
+void fill_black_screen(void)
+{
+	/*Black color*/
+	uint32 color = 0x00000000;
+	uint32 temp_src_format;
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+	/*
+	* VG2 Constant Color
+	*/
+	MDP_OUTP(MDP_BASE + 0x31008, color);
+	/*
+	* MDP_VG2_SRC_FORMAT
+	*/
+	temp_src_format = inpdw(MDP_BASE + 0x30050);
+	MDP_OUTP(MDP_BASE + 0x30050, temp_src_format | BIT(22));
+	/*
+	* MDP_OVERLAY_REG_FLUSH
+	*/
+	MDP_OUTP(MDP_BASE + 0x18000, BIT(3));
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+	return;
+}
+#endif
 
 void mdp4_overlay_dmae_xy(struct mdp4_overlay_pipe *pipe)
 {
@@ -568,10 +583,6 @@ static uint32 mdp4_scale_phase_step(int f_num, uint32 src, uint32 dst)
 	uint32 val, s;
 	int	n;
 
-	if (dst == 0) {
-		pr_err("%s:dst value is zero !\n", __func__);
-		return -EINVAL;
-	}
 	n = mdp4_leading_0(src);
 	if (n > f_num)
 		n = f_num;
@@ -731,52 +742,36 @@ static void mdp4_overlay_vg_get_src_offset(struct mdp4_overlay_pipe *pipe,
 	*luma_off = 0;
 	*chroma_off = 0;
 
-	if ((pipe->src_x || pipe->src_y) && (pipe->frame_format ==
+	if (pipe->src_x && (pipe->frame_format ==
 		MDP4_FRAME_FORMAT_LINEAR)) {
-		src_xy = 0;
+		src_xy = (pipe->src_y << 16) | pipe->src_x;
+		src_xy &= 0xffff0000;
 		outpdw(vg_base + 0x0004, src_xy);	/* MDP_RGB_SRC_XY */
 
 		switch (pipe->src_format) {
 		case MDP_Y_CR_CB_H2V2:
 		case MDP_Y_CR_CB_GH2V2:
 		case MDP_Y_CB_CR_H2V2:
-			*luma_off = pipe->src_x +
-				(pipe->src_y * pipe->srcp0_ystride);
-			*chroma_off = pipe->src_x / 2 +
-				((pipe->src_y / 2) * pipe->srcp1_ystride);
+				*luma_off = pipe->src_x;
+				*chroma_off = pipe->src_x/2;
 			break;
 
 		case MDP_Y_CBCR_H2V2_TILE:
 		case MDP_Y_CRCB_H2V2_TILE:
 		case MDP_Y_CBCR_H2V2:
 		case MDP_Y_CRCB_H2V2:
-			*luma_off = pipe->src_x +
-				(pipe->src_y * pipe->srcp0_ystride);
-			*chroma_off = pipe->src_x +
-				((pipe->src_y / 2) * pipe->srcp1_ystride);
-			break;
-
 		case MDP_Y_CRCB_H1V1:
 		case MDP_Y_CBCR_H1V1:
-			*luma_off = pipe->src_x +
-				(pipe->src_y * pipe->srcp0_ystride);
-			*chroma_off = pipe->src_x +
-				((pipe->src_y * 2) * pipe->srcp1_ystride);
-			break;
-
 		case MDP_Y_CRCB_H2V1:
 		case MDP_Y_CBCR_H2V1:
-			*luma_off = pipe->src_x +
-				(pipe->src_y * pipe->srcp0_ystride);
-			*chroma_off = pipe->src_x +
-				(pipe->src_y * pipe->srcp1_ystride);
+			*luma_off = pipe->src_x;
+			*chroma_off = pipe->src_x;
 			break;
 
 		case MDP_YCRYCB_H2V1:
 			if (pipe->src_x & 0x1)
 				pipe->src_x += 1;
-			*luma_off += pipe->src_x * 2 +
-				((pipe->src_y * 2) * pipe->srcp0_ystride);
+			*luma_off += pipe->src_x * 2;
 			break;
 
 		case MDP_ARGB_8888:
@@ -789,8 +784,7 @@ static void mdp4_overlay_vg_get_src_offset(struct mdp4_overlay_pipe *pipe,
 		case MDP_RGB_888:
 		case MDP_YCBCR_H1V1:
 		case MDP_YCRCB_H1V1:
-			*luma_off = (pipe->src_x * pipe->bpp) +
-					(pipe->src_y * pipe->srcp0_ystride);
+			*luma_off = pipe->src_x * pipe->bpp;
 			break;
 
 		default:
@@ -807,8 +801,7 @@ void mdp4_overlay_vg_setup(struct mdp4_overlay_pipe *pipe)
 	uint32 frame_size, src_size, src_xy, dst_size, dst_xy;
 	uint32 format, pattern, luma_offset, chroma_offset;
 	uint32 mask;
-	int pnum, ptype, i;
-	uint32_t block;
+	int pnum, ptype;
 
 	pnum = pipe->pipe_num - OVERLAY_PIPE_VG1; /* start from 0 */
 	vg_base = MDP_BASE + MDP4_VIDEO_BASE;
@@ -836,20 +829,6 @@ void mdp4_overlay_vg_setup(struct mdp4_overlay_pipe *pipe)
 
 			mdp4_csc_write(&pipe->pp_cfg.csc_cfg,
 				(uint32_t) (vg_base + MDP4_VIDEO_CSC_OFF));
-
-			if (pipe->pipe_num == OVERLAY_PIPE_VG1)
-				block = MDP_BLOCK_VG_1;
-			else
-				block = MDP_BLOCK_VG_2;
-
-			for (i = 0; i < CSC_MAX_BLOCKS; i++) {
-				if (block == csc_cfg_matrix[i].block) {
-					memcpy(&csc_cfg_matrix[i].csc_data,
-					&(pipe->pp_cfg.csc_cfg),
-					sizeof(struct mdp_csc_cfg));
-					break;
-				}
-			}
 		}
 		if (pipe->pp_cfg.config_ops & MDP_OVERLAY_PP_QSEED_CFG) {
 			mdp4_qseed_access_cfg(&pipe->pp_cfg.qseed_cfg[0],
@@ -1543,19 +1522,36 @@ void mdp4_overlayproc_cfg(struct mdp4_overlay_pipe *pipe)
 		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 }
 
-int mdp4_overlay_pipe_staged(struct mdp4_overlay_pipe *pipe)
+int mdp4_overlay_pipe_staged(int mixer)
 {
-	uint32 data, mask;
-	int mixer;
+	uint32 data, mask, i, off;
+	int p1, p2;
 
-	mixer = pipe->mixer_num;
-	data = ctrl->mixer_cfg[mixer];
+	if (mixer == MDP4_MIXER2)
+		off = 0x100F0;
+	else
+		off = 0x10100;
 
-	mask = 0x0f;
-	mask <<= (4 * pipe->pipe_num);
-	data &= mask;
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+	data = inpdw(MDP_BASE + off);
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+	p1 = 0;
+	p2 = 0;
+	for (i = 0; i < 8; i++) {
+		mask = data & 0x0f;
+		if (mask) {
+			if (mask <= 4)
+				p1++;
+			else
+				p2++;
+		}
+		data >>= 4;
+	}
 
-	return data;
+	if (mixer)
+		return p2;
+	else
+		return p1;
 }
 
 int mdp4_mixer_info(int mixer_num, struct mdp_mixer_info *info)
@@ -1607,14 +1603,8 @@ void mdp4_mixer_stage_commit(int mixer)
 		data |= stage;
 	}
 
-	/*
-	 * stage_commit may be called from overlay_unset
-	 * for command panel, mdp clocks may be off at this time.
-	 * so mdp clock enabled is necessary
-	 */
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 	mdp_clk_ctrl(1);
-
 	mdp4_mixer_blend_setup(mixer);
 
 	off = 0;
@@ -1795,10 +1785,9 @@ void mdp4_overlay_borderfill_stage_down(struct mdp4_overlay_pipe *pipe)
 		mdp4_dsi_cmd_base_swap(0, bspipe);
 	else if (ctrl->panel_mode & MDP4_PANEL_LCDC)
 		mdp4_lcdc_base_swap(0, bspipe);
-#ifdef CONFIG_FB_MSM_DTV
 	else if (ctrl->panel_mode & MDP4_PANEL_DTV)
 		mdp4_dtv_base_swap(0, bspipe);
-#endif
+
 	/* free borderfill pipe */
 	mdp4_overlay_reg_flush(pipe, 1);
 	mdp4_mixer_stage_down(pipe, 0); /* commit will happen for bspipe up */
@@ -1890,32 +1879,6 @@ static void mdp4_overlay_bg_solidfill(struct blend_cfg *blend)
 	outpdw(base + 0x50, format);
 
 	mdp4_overlay_reg_flush(pipe, 0);
-}
-
-void mdp4_mixer_blend_cfg(int mixer)
-{
-	int i, off;
-	unsigned char *overlay_base;
-	struct blend_cfg *blend;
-
-	if (mixer == MDP4_MIXER2)
-		overlay_base = MDP_BASE + MDP4_OVERLAYPROC2_BASE;
-	else if (mixer == MDP4_MIXER1)
-		overlay_base = MDP_BASE + MDP4_OVERLAYPROC1_BASE;
-	else
-		overlay_base = MDP_BASE + MDP4_OVERLAYPROC0_BASE;
-
-	blend = &ctrl->blend[mixer][MDP4_MIXER_STAGE_BASE];
-	blend++; /* stage0 */
-
-	for (i = MDP4_MIXER_STAGE0; i < MDP4_MIXER_STAGE_MAX; i++) {
-		off = 20 * i;
-		off = 0x20 * (i - MDP4_MIXER_STAGE0);
-		if (i == MDP4_MIXER_STAGE3)
-			off -= 4;
-		outpdw(overlay_base + off + 0x104, blend->op);
-		blend++;
-	}
 }
 
 /*
@@ -2067,10 +2030,7 @@ void mdp4_mixer_blend_setup(int mixer)
 
 		outpdw(overlay_base + off + 0x108, blend->fg_alpha);
 		outpdw(overlay_base + off + 0x10c, blend->bg_alpha);
-
-		if (mdp_rev >= MDP_REV_42)
-			outpdw(overlay_base + off + 0x104, blend->op);
-
+		outpdw(overlay_base + off + 0x104, blend->op);
 		outpdw(overlay_base + (off << 5) + 0x1004, blend->co3_sel);
 		outpdw(overlay_base + off + 0x110, blend->transp_low0);/* low */
 		outpdw(overlay_base + off + 0x114, blend->transp_low1);/* low */
@@ -2372,7 +2332,7 @@ static int mdp4_overlay_req2pipe(struct mdp_overlay *req, int mixer,
 		pipe = mdp4_overlay_ndx2pipe(req->id);
 
 	if (pipe == NULL) {
-		pr_err("%s: pipe == NULL! id = %d, ptype = %d\n", __func__, req->id, ptype);
+		pr_err("%s: pipe == NULL!\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -2397,11 +2357,6 @@ static int mdp4_overlay_req2pipe(struct mdp_overlay *req, int mixer,
 	 * zorder 2 == stage 2 == 4
 	 */
 	if (req->id == MSMFB_NEW_REQUEST) {  /* new request */
-		if (mdp4_overlay_pipe_staged(pipe)) {
-			pr_err("%s: ndx=%d still staged\n", __func__,
-						pipe->pipe_ndx);
-			return -EPERM;
-		}
 		pipe->pipe_used++;
 		pipe->mixer_num = mixer;
 		pr_debug("%s: zorder=%d pipe ndx=%d num=%d\n", __func__,
@@ -2409,10 +2364,7 @@ static int mdp4_overlay_req2pipe(struct mdp_overlay *req, int mixer,
 
 	}
 
-	if (!mdp4_overlay_borderfill_supported())
-		pipe->mixer_stage = req->z_order + MDP4_MIXER_STAGE_BASE;
-	else
-		pipe->mixer_stage = req->z_order + MDP4_MIXER_STAGE0;
+	pipe->mixer_stage = req->z_order + MDP4_MIXER_STAGE0;
 	pipe->src_width = req->src.width & 0x1fff;	/* source img width */
 	pipe->src_height = req->src.height & 0x1fff;	/* source img height */
 	pipe->src_h = req->src_rect.h & 0x07ff;
@@ -2460,7 +2412,6 @@ static int mdp4_calc_pipe_mdp_clk(struct msm_fb_data_type *mfd,
 	u32 pclk;
 	u32 xscale, yscale;
 	u32 hsync = 0;
-	u32 h_period, v_period;
 	u32 shift = 16;
 	u64 rst;
 	int ptype;
@@ -2499,27 +2450,6 @@ static int mdp4_calc_pipe_mdp_clk(struct msm_fb_data_type *mfd,
 		mfd->panel_info.type == MIPI_CMD_PANEL) ?
 		mfd->panel_info.mipi.dsi_pclk_rate :
 		mfd->panel_info.clk_rate;
-
-	if (mfd->panel_info.type == MDDI_PANEL) {
-		h_period = mfd->panel_info.lcdc.h_back_porch +
-			mfd->panel_info.lcdc.h_front_porch +
-			mfd->panel_info.lcdc.h_pulse_width +
-			mfd->panel_info.xres;
-
-		if (h_period == mfd->panel_info.xres)
-			h_period = (mfd->panel_info.xres * 110/100);
-
-		v_period = mfd->panel_info.lcdc.v_back_porch +
-			mfd->panel_info.lcdc.v_front_porch +
-			mfd->panel_info.lcdc.v_pulse_width +
-			mfd->panel_info.yres;
-
-		if (v_period == mfd->panel_info.yres)
-			v_period = (mfd->panel_info.yres * 110/100);
-
-		pclk = h_period * v_period * 60;
-	}
-
 	if (!pclk) {
 		pipe->req_clk = mdp_max_clk;
 		pr_err("%s panel pixel clk is zero!\n", __func__);
@@ -2546,8 +2476,8 @@ static int mdp4_calc_pipe_mdp_clk(struct msm_fb_data_type *mfd,
 		return ret;
 	}
 
-	if (!pipe->src_w) {
-		pr_err("%s: pipe src_w is zero!\n", __func__);
+	if (!pipe->dst_h) {
+		pr_err("%s: pipe dst_h is zero!\n", __func__);
 		pipe->req_clk = mdp_max_clk;
 		return ret;
 	}
@@ -2558,11 +2488,11 @@ static int mdp4_calc_pipe_mdp_clk(struct msm_fb_data_type *mfd,
 
 		ptype = mdp4_overlay_format2type(pipe->src_format);
 		if (ptype == OVERLAY_TYPE_VIDEO) {
-			if ((pipe->src_h > 720) && (pipe->src_w >= 1080))  {
+			if ((pipe->src_h >= 720) && (pipe->src_w >= 1080))  {
 				pipe->req_clk = (u32) mdp_max_clk + 100; 
 				pipe->blt_forced++;
 				return 0;
-			} else if ((pipe->src_h >= 1080) && (pipe->src_w > 720))  {
+			} else if ((pipe->src_h >= 1080) && (pipe->src_w >= 720))  {
 				pipe->req_clk = (u32) mdp_max_clk + 100; 
 				pipe->blt_forced++;
 				return 0;
@@ -2592,6 +2522,7 @@ static int mdp4_calc_pipe_mdp_clk(struct msm_fb_data_type *mfd,
 	}
 
 	if (!hsync) {
+		pipe->req_clk = mdp_max_clk;
 		pr_err("%s: panel hsync is zero!\n", __func__);
 		return 0;
 	}
@@ -2615,21 +2546,11 @@ static int mdp4_calc_pipe_mdp_clk(struct msm_fb_data_type *mfd,
 	if (pipe->src_h > pipe->dst_h) {
 		yscale = pipe->src_h;
 		yscale <<= shift;
-		if (pipe->dst_h != 0) {
-			yscale /= pipe->dst_h;
-		} else {
-			pr_err("%s: pipe->dst_h is zero!\n", __func__);
-			return 0;
-		}
+		yscale /= pipe->dst_h;
 	} else {		/* upscale */
 		yscale = pipe->dst_h;
 		yscale <<= shift;
-		if (pipe->src_h != 0) {
-			yscale /= pipe->src_h;
-		} else {
-			pr_err("%s: pipe->src_h is zero!\n", __func__);
-			return 0;
-		}
+		yscale /= pipe->src_h;
 	}
 
 	yscale *= pipe->src_w;
@@ -2647,28 +2568,6 @@ static int mdp4_calc_pipe_mdp_clk(struct msm_fb_data_type *mfd,
 	rst >>= shift;
 
 	/*
-	 * There is one special case for the panels that have low
-	 * v_back_porch (<=4), mdp clk should be fast enough to buffer
-	 * 4 lines input during back porch time if scaling is
-	 * required(FIR).
-	 */
-	if ((mfd->panel_info.lcdc.v_back_porch <= 4) &&
-	    (pipe->src_h != pipe->dst_h) &&
-	    (mfd->panel_info.lcdc.v_back_porch)) {
-		u32 clk = 0;
-		if (mfd->panel_info.lcdc.v_back_porch != 0) {
-			clk = 4 * (pclk >> shift) / mfd->panel_info.lcdc.v_back_porch;
-		} else {
-			pr_err("%s: mfd->panel_info.lcdc.v_back_porch is zero!\n", __func__);
-			return 0;
-		}
-		clk <<= shift;
-		pr_debug("%s: mdp clk rate %d based on low vbp %d\n",
-			 __func__, clk, mfd->panel_info.lcdc.v_back_porch);
-		rst = (rst > clk) ? rst : clk;
-	}
-
-	/*
 	 * If the calculated mdp clk is less than panel pixel clk,
 	 * most likely due to upscaling, mdp clk rate will be set to
 	 * greater than pclk. Now the driver uses 1.15 as the
@@ -2679,8 +2578,6 @@ static int mdp4_calc_pipe_mdp_clk(struct msm_fb_data_type *mfd,
 		pr_debug("%s calculated mdp clk is less than pclk.\n",
 			__func__);
 	}
-	if (mfd->panel_info.type == MDDI_PANEL && rst <= 122880000)
-		rst = 122880000;
 
 	pipe->req_clk = (u32) rst;
 
@@ -2738,13 +2635,14 @@ static int mdp4_calc_pipe_mdp_bw(struct msm_fb_data_type *mfd,
 	return 0;
 }
 
-int mdp4_overlay_mdp_perf_req(struct msm_fb_data_type *mfd)
+int mdp4_overlay_mdp_perf_req(struct msm_fb_data_type *mfd,
+			      struct mdp4_overlay_pipe *plist)
 {
 	u32 worst_mdp_clk = 0;
 	u32 worst_mdp_bw = OVERLAY_PERF_LEVEL4;
 	int i;
 	struct mdp4_overlay_perf *perf_req = &perf_request;
-	struct mdp4_overlay_pipe *pipe;
+	struct mdp4_overlay_pipe *pipe = plist;
 	u32 cnt = 0;
 	int ret = -EINVAL;
 
@@ -2753,7 +2651,10 @@ int mdp4_overlay_mdp_perf_req(struct msm_fb_data_type *mfd)
 		return ret;
 	}
 
-	pipe = ctrl->plist;
+	if (!plist) {
+		pr_err("%s: plist is null!\n", __func__);
+		return ret;
+	}
 
 	perf_req->use_ov0_blt = 0;
 	perf_req->use_ov1_blt = 0;
@@ -2889,8 +2790,6 @@ void mdp4_overlay_mdp_perf_upd(struct msm_fb_data_type *mfd,
 				mdp4_dsi_video_blt_start(mfd);
 			else if (ctrl->panel_mode & MDP4_PANEL_DSI_CMD)
 				mdp4_dsi_cmd_blt_start(mfd);
-			else if (ctrl->panel_mode & MDP4_PANEL_MDDI)
-				mdp4_mddi_blt_start(mfd);
 			pr_info("%s mixer0 start blt [%d] from %d to %d.\n",
 				__func__,
 				flag,
@@ -2898,11 +2797,6 @@ void mdp4_overlay_mdp_perf_upd(struct msm_fb_data_type *mfd,
 				perf_req->use_ov0_blt);
 			perf_cur->use_ov0_blt = perf_req->use_ov0_blt;
 		}
-                if(mfd->panel_info.pdest == DISPLAY_2 &&
-                   perf_req->use_ov1_blt && !perf_cur->use_ov1_blt) {
-                   mdp4_dtv_overlay_blt_start(mfd);
-                   perf_cur->use_ov1_blt = perf_req->use_ov1_blt;
-                }
 	} else {
 		if (perf_req->mdp_clk_rate < perf_cur->mdp_clk_rate) {
 			pr_info("%s mdp clk is changed [%d] from %d to %d\n",
@@ -2934,8 +2828,6 @@ void mdp4_overlay_mdp_perf_upd(struct msm_fb_data_type *mfd,
 				mdp4_dsi_video_blt_stop(mfd);
 			else if (ctrl->panel_mode & MDP4_PANEL_DSI_CMD)
 				mdp4_dsi_cmd_blt_stop(mfd);
-			else if (ctrl->panel_mode & MDP4_PANEL_MDDI)
-				mdp4_mddi_blt_stop(mfd);
 			pr_info("%s mixer0 stop blt [%d] from %d to %d.\n",
 				__func__,
 				flag,
@@ -3127,9 +3019,6 @@ int mdp4_overlay_set(struct fb_info *info, struct mdp_overlay *req)
 								__func__);
 	}
 
-	if (hdmi_prim_display)
-		fill_black_screen(FALSE, pipe->pipe_num, pipe->mixer_num);
-
 	mdp4_overlay_mdp_pipe_req(pipe, mfd);
 
 	mutex_unlock(&mfd->dma->ov_mutex);
@@ -3190,34 +3079,31 @@ int mdp4_overlay_unset(struct fb_info *info, int ndx)
 	else {
 		/* mixer 0 */
 		ctrl->mixer0_played = 0;
-
+		if (ctrl->panel_mode & MDP4_PANEL_MDDI) {
+			if (mfd->panel_power_on)
+				mdp4_mddi_blt_dmap_busy_wait(mfd);
+		}
 	}
 
 	mdp4_overlay_reg_flush(pipe, 1);
-
 	mdp4_mixer_stage_down(pipe, 0);
-
-	if (!mdp4_overlay_borderfill_supported() &&
-		pipe->mixer_stage == MDP4_MIXER_STAGE_BASE) {
-			pipe->mixer_stage = MDP4_MIXER_STAGE_UNUNSED;
-	}
 
 	if (pipe->blt_forced) {
 		if (pipe->flags & MDP_SECURE_OVERLAY_SESSION) {
 			pipe->blt_forced = 0;
 			pipe->req_clk = 0;
-			mdp4_overlay_mdp_perf_req(mfd);
+			mdp4_overlay_mdp_perf_req(mfd, ctrl->plist);
 		}
 	}
 
 	if (pipe->mixer_num == MDP4_MIXER0) {
-	} else {	/* mixer1, DTV, ATV */
-		if (ctrl->panel_mode & MDP4_PANEL_DTV) {
-			if (hdmi_prim_display)
-				fill_black_screen(TRUE, pipe->pipe_num,
-					pipe->mixer_num);
-			mdp4_overlay_dtv_unset(mfd, pipe);
+		if (ctrl->panel_mode & MDP4_PANEL_MDDI) {
+			if (mfd->panel_power_on)
+				mdp4_mddi_overlay_restore();
 		}
+	} else {	/* mixer1, DTV, ATV */
+		if (ctrl->panel_mode & MDP4_PANEL_DTV)
+			mdp4_overlay_dtv_unset(mfd, pipe);
 	}
 
 	mdp4_stat.overlay_unset[pipe->mixer_num]++;
@@ -3229,19 +3115,17 @@ int mdp4_overlay_unset(struct fb_info *info, int ndx)
 	return 0;
 }
 
-int mdp4_overlay_wait4vsync(struct fb_info *info)
+int mdp4_overlay_wait4vsync(struct fb_info *info, long long *vtime)
 {
 	if (!hdmi_prim_display && info->node == 0) {
 		if (ctrl->panel_mode & MDP4_PANEL_DSI_VIDEO)
-			mdp4_dsi_video_wait4vsync(0);
+			mdp4_dsi_video_wait4vsync(0, vtime);
 		else if (ctrl->panel_mode & MDP4_PANEL_DSI_CMD)
-			mdp4_dsi_cmd_wait4vsync(0);
+			mdp4_dsi_cmd_wait4vsync(0, vtime);
 		else if (ctrl->panel_mode & MDP4_PANEL_LCDC)
-			mdp4_lcdc_wait4vsync(0);
-		else if (ctrl->panel_mode & MDP4_PANEL_MDDI)
-			mdp4_mddi_wait4vsync(0);
+			mdp4_lcdc_wait4vsync(0, vtime);
 	} else if (hdmi_prim_display || info->node == 1) {
-		mdp4_dtv_wait4vsync(0);
+		mdp4_dtv_wait4vsync(0, vtime);
 	}
 
 	return 0;
@@ -3263,8 +3147,6 @@ int mdp4_overlay_vsync_ctrl(struct fb_info *info, int enable)
 			mdp4_dsi_cmd_vsync_ctrl(info, cmd);
 		else if (ctrl->panel_mode & MDP4_PANEL_LCDC)
 			mdp4_lcdc_vsync_ctrl(info, cmd);
-		else if (ctrl->panel_mode & MDP4_PANEL_MDDI)
-			mdp4_mddi_vsync_ctrl(info, cmd);
 	} else if (hdmi_prim_display || info->node == 1)
 		mdp4_dtv_vsync_ctrl(info, cmd);
 
@@ -3482,33 +3364,63 @@ int mdp4_overlay_play(struct fb_info *info, struct msmfb_overlay_data *req)
 		}
 	}
 
-	mdp4_overlay_mdp_perf_req(mfd);
+	mdp4_overlay_mdp_perf_req(mfd, ctrl->plist);
+
+	if (pipe->mixer_num == MDP4_MIXER2 ||
+				ctrl->panel_mode & MDP4_PANEL_MDDI)
+		goto mddi;
 
 	if (pipe->mixer_num == MDP4_MIXER0) {
 		if (ctrl->panel_mode & MDP4_PANEL_DSI_CMD) {
 			/* cndx = 0 */
+#ifdef CONFIG_FB_MSM_DTV
 			mdp4_dsi_cmd_pipe_queue(0, pipe);
 		} else if (ctrl->panel_mode & MDP4_PANEL_DSI_VIDEO) {
 			/* cndx = 0 */
 			mdp4_dsi_video_pipe_queue(0, pipe);
+#endif
 		} else if (ctrl->panel_mode & MDP4_PANEL_LCDC) {
 			/* cndx = 0 */
 			mdp4_lcdc_pipe_queue(0, pipe);
-		}
-		if (ctrl->panel_mode & MDP4_PANEL_MDDI) {
-			/* cndx = 0 */
-			mdp4_mddi_pipe_queue(0, pipe);
 		}
 #ifdef CONFIG_FB_MSM_DTV
 	} else if (pipe->mixer_num == MDP4_MIXER1) {
 		if (ctrl->panel_mode & MDP4_PANEL_DTV)
 			mdp4_dtv_pipe_queue(0, pipe);/* cndx = 0 */
 #endif
-	} else if (pipe->mixer_num == MDP4_MIXER2) {
-		ctrl->mixer2_played++;
-		if (ctrl->panel_mode & MDP4_PANEL_WRITEBACK)
-			mdp4_wfd_pipe_queue(0, pipe);/* cndx = 0 */
 	}
+	mutex_unlock(&mfd->dma->ov_mutex);
+	return ret;
+
+mddi:
+	if (pipe->pipe_type == OVERLAY_TYPE_VIDEO) {
+		mdp4_overlay_vg_setup(pipe);    /* video/graphic pipe */
+	} else {
+		mdp4_overlay_rgb_setup(pipe);	/* rgb pipe */
+	}
+
+	mdp4_mixer_stage_up(pipe, 0);
+
+	if (pipe->mixer_num == MDP4_MIXER2) {
+		ctrl->mixer2_played++;
+		if (ctrl->panel_mode & MDP4_PANEL_WRITEBACK) {
+			mdp4_writeback_dma_busy_wait(mfd);
+			mdp4_writeback_kickoff_video(mfd, pipe);
+		}
+	} else if (ctrl->panel_mode & MDP4_PANEL_MDDI) {
+		if (pipe->flags & MDP_OV_PLAY_NOWAIT) {
+			mdp4_stat.overlay_play[pipe->mixer_num]++;
+			mutex_unlock(&mfd->dma->ov_mutex);
+			goto end;
+		}
+		mdp4_mixer_stage_commit(pipe->mixer_num);
+		mdp4_mddi_dma_busy_wait(mfd);
+		mdp4_mddi_kickoff_video(mfd, pipe);
+	}
+
+	if (!(pipe->flags & MDP_OV_PLAY_NOWAIT))
+		mdp4_iommu_unmap(pipe);
+	mdp4_stat.overlay_play[pipe->mixer_num]++;
 
 end:
 	mutex_unlock(&mfd->dma->ov_mutex);
@@ -3518,7 +3430,6 @@ end:
 
 int mdp4_overlay_commit(struct fb_info *info)
 {
-	int ret = 0;
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
 	int mixer;
 
@@ -3530,37 +3441,33 @@ int mdp4_overlay_commit(struct fb_info *info)
 
 	mixer = mfd->panel_info.pdest;	/* DISPLAY_1 or DISPLAY_2 */
 
+	if (mixer >= MDP4_MIXER_MAX)
+		return -EPERM;
+
 	mutex_lock(&mfd->dma->ov_mutex);
 
 	mdp4_overlay_mdp_perf_upd(mfd, 1);
 
 	msm_fb_wait_for_fence(mfd);
 
-	switch (mfd->panel.type) {
-	case MIPI_CMD_PANEL:
-		mdp4_dsi_cmd_pipe_commit(0, 1);
-		break;
-	case MIPI_VIDEO_PANEL:
-		mdp4_dsi_video_pipe_commit(0, 1);
-		break;
-	case LCDC_PANEL:
-		mdp4_lcdc_pipe_commit(0, 1);
-		break;
-	case MDDI_PANEL:
-		mdp4_mddi_pipe_commit(0, 1);
-		break;
+	if (mixer == MDP4_MIXER0) {
+		if (ctrl->panel_mode & MDP4_PANEL_DSI_CMD) {
+			/* cndx = 0 */
 #ifdef CONFIG_FB_MSM_DTV
-	case DTV_PANEL:
-		mdp4_dtv_pipe_commit(0, 1);
-		break;
+			mdp4_dsi_cmd_pipe_commit(0, 1);
+		} else if (ctrl->panel_mode & MDP4_PANEL_DSI_VIDEO) {
+			/* cndx = 0 */
+			mdp4_dsi_video_pipe_commit(0, 1);
 #endif
-	case WRITEBACK_PANEL:
-		mdp4_wfd_pipe_commit(mfd, 0, 1);
-		break;
-	default:
-		pr_err("Panel Not Supported for Commit");
-		ret = -EINVAL;
-		break;
+		} else if (ctrl->panel_mode & MDP4_PANEL_LCDC) {
+			/* cndx = 0 */
+			mdp4_lcdc_pipe_commit(0, 1);
+		}
+#ifdef CONFIG_FB_MSM_DTV
+	} else if (mixer == MDP4_MIXER1) {
+		if (ctrl->panel_mode & MDP4_PANEL_DTV)
+			mdp4_dtv_pipe_commit(0, 1);
+#endif
 	}
 	msm_fb_signal_timeline(mfd);
 
@@ -3568,7 +3475,7 @@ int mdp4_overlay_commit(struct fb_info *info)
 
 	mutex_unlock(&mfd->dma->ov_mutex);
 
-	return ret;
+	return 0;
 }
 
 struct msm_iommu_ctx {

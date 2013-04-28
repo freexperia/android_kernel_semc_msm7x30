@@ -1,7 +1,7 @@
 /*
  * MDSS MDP Interface (used by framebuffer core)
  *
- * Copyright (c) 2007-2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2007-2012, Code Aurora Forum. All rights reserved.
  * Copyright (C) 2007 Google Incorporated
  *
  * This software is licensed under the terms of the GNU General Public
@@ -286,7 +286,7 @@ int mdss_mdp_bus_scale_set_quota(u32 ab_quota, u32 ib_quota)
 		vect->ab = ab_quota;
 		vect->ib = ib_quota;
 
-		pr_debug("bus scale idx=%d ab=%llu ib=%llu\n", bus_idx,
+		pr_debug("bus scale idx=%d ab=%u ib=%u\n", bus_idx,
 				vect->ab, vect->ib);
 	}
 	current_bus_idx = bus_idx;

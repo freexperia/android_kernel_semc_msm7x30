@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -54,7 +54,6 @@ struct disp_info_type_suspend {
 	boolean op_enable;
 	boolean sw_refreshing_enable;
 	boolean panel_power_on;
-	boolean op_suspend;
 };
 
 struct msmfb_writeback_data_list {
@@ -127,7 +126,6 @@ struct msm_fb_data_type {
 	__u32 channel_irq;
 
 	struct mdp_dma_data *dma;
-	struct device_attribute dev_attr;
 	void (*dma_fnc) (struct msm_fb_data_type *mfd);
 	int (*cursor_update) (struct fb_info *info,
 			      struct fb_cursor *cursor);
@@ -138,8 +136,7 @@ struct msm_fb_data_type {
 	int (*start_histogram) (struct mdp_histogram_start_req *req);
 	int (*stop_histogram) (struct fb_info *info, uint32_t block);
 	void (*vsync_ctrl) (int enable);
-	void (*vsync_init) (int cndx);
-	void *vsync_show;
+	void (*vsync_init) (int cndx, struct msm_fb_data_type *mfd);
 	void *cursor_buf;
 	void *cursor_buf_phys;
 
@@ -208,7 +205,6 @@ struct msm_fb_data_type {
 	struct work_struct commit_work;
 	void *msm_fb_backup;
 	boolean panel_driver_on;
-	int vsync_sysfs_created;
 };
 struct msm_fb_backup_type {
 	struct fb_info info;
@@ -238,7 +234,8 @@ int msm_fb_signal_timeline(struct msm_fb_data_type *mfd);
 void msm_fb_config_backlight(struct msm_fb_data_type *mfd);
 #endif
 
-void fill_black_screen(bool on, uint8 pipe_num, uint8 mixer_num);
+void fill_black_screen(void);
+void unfill_black_screen(void);
 int msm_fb_check_frame_rate(struct msm_fb_data_type *mfd,
 				struct fb_info *info);
 
