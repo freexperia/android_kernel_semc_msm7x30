@@ -61,3 +61,5 @@ obj-$(CONFIG_PMIC8058_OTHC)             += pmic8058-othc.o
 obj-$(CONFIG_INPUT_PMIC8058_VIBRA_MEMLESS) += pmic8058-vib-memless.o
 obj-$(CONFIG_BOSCH_BMA150)              += bma150.o
 obj-$(CONFIG_STM_LIS3DH)		+= lis3dh_acc.o
+obj-$(CONFIG_INPUT_BMA150_NG)		+= bma150_ng.o
+obj-$(CONFIG_INPUT_APDS9702)	+= apds9702.o
