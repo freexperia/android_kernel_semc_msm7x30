@@ -1282,16 +1282,6 @@ static int __init aux_pcm_gpio_init(void)
 				__func__, aux_pcm_gpio_on[pin], rc);
 		}
 	}
-
-	/* Enabling HAC amplifier */
-	rc = gpio_tlmm_config(HAC_amp_gpio_config, GPIO_CFG_ENABLE);
-	if (rc) {
-		printk(KERN_ERR
-			"%s: gpio_tlmm_config(%#x)=%d\n",
-			__func__, HAC_amp_gpio_config, rc);
-	}
-
-
 	return rc;
 }
 
@@ -2475,6 +2465,134 @@ static struct clearpad_platform_data clearpad_platform_data = {
 };
 #endif
 
+/* Driver(s) to be notified upon change in battery data */
+static char *semc_bdata_supplied_to[] = {
+	BQ27520_NAME,
+	BATTERY_CHARGALG_NAME,
+};
+
+static struct semc_battery_platform_data semc_battery_platform_data = {
+	.supplied_to = semc_bdata_supplied_to,
+	.num_supplicants = ARRAY_SIZE(semc_bdata_supplied_to),
+#ifndef CONFIG_BATTERY_BQ27520
+	.use_fuelgauge = 1,
+#endif
+};
+
+static struct platform_device bdata_driver = {
+	.name = SEMC_BDATA_NAME,
+	.id = -1,
+	.dev = {
+		.platform_data = &semc_battery_platform_data,
+	},
+};
+
+/* Driver(s) to be notified upon change in fuelgauge data */
+static char *bq27520_supplied_to[] = {
+	BATTERY_CHARGALG_NAME,
+};
+
+static struct bq27520_block_table bq27520_block_table[BQ27520_BTBL_MAX] = {
+	{0x61, 0x00}, {0x3E, 0x24}, {0x3F, 0x00}, {0x42, 0x00},
+	{0x43, 0x46}, {0x44, 0x00}, {0x45, 0x19}, {0x46, 0x00},
+	{0x47, 0x64}, {0x48, 0x28}, {0x4B, 0xFF}, {0x4C, 0x5F},
+	{0x60, 0xF4}
+};
+
+struct bq27520_platform_data bq27520_platform_data = {
+	.name = BQ27520_NAME,
+	.supplied_to = bq27520_supplied_to,
+	.num_supplicants = ARRAY_SIZE(bq27520_supplied_to),
+	.lipo_bat_max_volt = LIPO_BAT_MAX_VOLTAGE,
+	.lipo_bat_min_volt = LIPO_BAT_MIN_VOLTAGE,
+#ifdef CONFIG_BATTERY_BQ27520
+	.battery_dev_name = SEMC_BDATA_NAME,
+#endif
+	.polling_lower_capacity = FULLY_CHARGED_AND_RECHARGE_CAP,
+	.polling_upper_capacity = 100,
+	.udatap = bq27520_block_table,
+#ifdef CONFIG_BATTERY_CHARGALG
+	.disable_algorithm = battery_chargalg_disable,
+#endif
+};
+
+/* Driver(s) to be notified upon change in charging */
+static char *bq24185_supplied_to[] = {
+	BATTERY_CHARGALG_NAME,
+	SEMC_BDATA_NAME,
+};
+
+struct bq24185_platform_data bq24185_platform_data = {
+	.name = BQ24185_NAME,
+	.supplied_to = bq24185_supplied_to,
+	.num_supplicants = ARRAY_SIZE(bq24185_supplied_to),
+	.support_boot_charging = 1,
+	.rsens = BQ24185_RSENS_REF,
+	/* Maximum battery regulation voltage = 4200mV */
+	.mbrv = BQ24185_MBRV_MV_4200,
+	/* Maximum charger current sense voltage = 71.4mV */
+	.mccsv = BQ24185_MCCSV_MV_6p8 | BQ24185_MCCSV_MV_27p2 |
+		BQ24185_MCCSV_MV_37p4,
+#ifdef CONFIG_USB_MSM_OTG_72K
+	.notify_vbus_drop = msm_otg_notify_vbus_drop,
+#endif
+};
+
+static struct battery_regulation_vs_temperature id_bat_reg = {
+	/* Cold, Normal, Warm, Overheat */
+	{5, 45,		55,	127},	/* temp */
+	{0, 4200,	4000,	0},	/* volt */
+	{0, USHORT_MAX,	400,	0},	/* curr */
+};
+
+/* Driver(s) to be notified upon change in algorithm */
+static char *battery_chargalg_supplied_to[] = {
+	SEMC_BDATA_NAME,
+};
+
+static struct battery_chargalg_platform_data battery_chargalg_platform_data = {
+	.name = BATTERY_CHARGALG_NAME,
+	.supplied_to = battery_chargalg_supplied_to,
+	.num_supplicants = ARRAY_SIZE(battery_chargalg_supplied_to),
+	.overvoltage_max_design = 4225,
+	.id_bat_reg = &id_bat_reg,
+	.ext_eoc_recharge_enable = 1,
+	.temp_hysteresis_design = 3,
+	.ddata = &device_data,
+	.batt_volt_psy_name = BQ27520_NAME,
+	.batt_curr_psy_name = BQ27520_NAME,
+
+#ifdef CONFIG_CHARGER_BQ24185
+	.turn_on_charger = bq24185_turn_on_charger,
+	.turn_off_charger = bq24185_turn_off_charger,
+	.set_charger_voltage = bq24185_set_charger_voltage,
+	.set_charger_current = bq24185_set_charger_current,
+	.set_input_current_limit = bq24185_set_input_current_limit,
+	.set_charging_status = bq24185_set_ext_charging_status,
+#endif
+	.get_supply_current_limit = hsusb_get_chg_current_ma,
+	.allow_dynamic_charge_current_ctrl = 1,
+	.charge_set_current_1 = 350,
+	.charge_set_current_2 = 550,
+	.charge_set_current_3 = 750,
+	.average_current_min_limit = -1,
+	.average_current_max_limit = 250,
+};
+
+static struct platform_device battery_chargalg_platform_device = {
+	.name = BATTERY_CHARGALG_NAME,
+	.id = -1,
+	.dev = {
+		.platform_data = &battery_chargalg_platform_data,
+	},
+};
+
+/* Driver(s) to be notified upon change in USB */
+static char *hsusb_chg_supplied_to[] = {
+	BATTERY_CHARGALG_NAME,
+	BQ27520_NAME,
+};
+
 #if defined(CONFIG_LM3560) || defined(CONFIG_LM3561)
 int lm356x_request_gpio_pins(void)
 {
@@ -2667,6 +2785,18 @@ static struct i2c_board_info msm_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("as3676", 0x80 >> 1),
 		.platform_data = &as3676_platform_data,
+	},
+	{
+		I2C_BOARD_INFO(BQ27520_NAME, 0xAA >> 1),
+		.irq = MSM_GPIO_TO_INT(GPIO_BQ27520_SOC_INT),
+		.platform_data = &bq27520_platform_data,
+		.type = BQ27520_NAME,
+	},
+	{
+		I2C_BOARD_INFO(BQ24185_NAME, 0xd6 >> 1),
+		.platform_data = &bq24185_platform_data,
+		.type = BQ24185_NAME,
+		.irq = PM8058_GPIO_IRQ(PMIC8058_IRQ_BASE, BQ24185_GPIO_IRQ - 1),
 	},
 #ifdef CONFIG_INPUT_BMA150
 	{ /* TODO: Remove? Added due to wrong bus connection on Anzu SP1. */
@@ -4151,19 +4281,6 @@ static void __init bt_power_init(void)
 #define bt_power_init(x) do {} while (0)
 #endif
 
-static struct msm_psy_batt_pdata msm_psy_batt_data = {
-	.voltage_min_design 	= 2800,
-	.voltage_max_design	= 4300,
-	.avail_chg_sources   	= AC_CHG | USB_CHG ,
-	.batt_technology        = POWER_SUPPLY_TECHNOLOGY_LION,
-};
-
-static struct platform_device msm_batt_device = {
-	.name 		    = "msm-battery",
-	.id		    = -1,
-	.dev.platform_data  = &msm_psy_batt_data,
-};
-
 static struct msm_adc_platform_data msm_adc_pdata;
 
 static struct platform_device msm_adc_device = {
@@ -4297,10 +4414,12 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_MSM_VPE
 	&msm_vpe_device,
 #endif
+	&bdata_driver,
 #ifdef CONFIG_SIMPLE_REMOTE_PLATFORM
 	&simple_remote_pf_device,
 #endif
 	&novatek_device,
+	&battery_chargalg_platform_device,
 #if defined(CONFIG_FB_MSM_MDDI_SONY_HVGA_LCD)
 	&mddi_sony_hvga_display_device,
 #endif
@@ -4333,7 +4452,6 @@ static struct platform_device *devices[] __initdata = {
 	&qcedev_device,
 #endif
 
-	&msm_batt_device,
 	&msm_adc_device,
 	&msm_ebi0_thermal,
 	&msm_ebi1_thermal,
@@ -5586,8 +5704,8 @@ static void __init msm7x30_init(void)
 		pr_debug("%s: SOC Version:2.(1 or more)\n", __func__);
 		msm_otg_pdata.ldo_set_voltage = 0;
 	}
-	/*hsusb_chg_set_supplicants(hsusb_chg_supplied_to,
-				  ARRAY_SIZE(hsusb_chg_supplied_to));*/
+	hsusb_chg_set_supplicants(hsusb_chg_supplied_to,
+				  ARRAY_SIZE(hsusb_chg_supplied_to));
 	msm_device_otg.dev.platform_data = &msm_otg_pdata;
 #ifdef CONFIG_USB_GADGET
 	msm_otg_pdata.swfi_latency =

@@ -13,13 +13,13 @@
  */
 #include <mach/board-semc_mogami.h>
 
-/* charger-urushi.c 
+/* charger-urushi.c */
 
 struct device_data device_data = {
 	.battery_capacity_mah = 1500,
 	.maximum_charging_current_ma = 1050,
 };
-*/
+
 /* gpio-urushi.c */
 
 struct msm_gpio qup_i2c_gpios_hw[] = {

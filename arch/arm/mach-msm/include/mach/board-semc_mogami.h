@@ -16,6 +16,11 @@
 #include <linux/leds-as3676.h>
 #include <linux/leds.h>
 
+#include <linux/i2c/bq24185_charger.h>
+#include <linux/i2c/bq27520_battery_semc.h>
+#include <linux/battery_chargalg.h>
+#include <mach/semc_battery_data.h>
+
 /* Keypad */
 #define PM8058_KEYPAD_DEV	"pm8058-keypad"
 #define PM8058_KEYPAD_PHYS	"sys/bus/i2c/devices/6-0000"
