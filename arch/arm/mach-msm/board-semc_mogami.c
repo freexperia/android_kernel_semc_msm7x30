@@ -144,9 +144,11 @@
 
 #include "devices.h"
 #include "timer.h"
+#include "board-semc_mogami-keypad.h"
 #ifdef CONFIG_SIMPLE_REMOTE_PLATFORM
 #include <mach/simple_remote_msm7x30_pf.h>
 #endif
+#include "board-semc_mogami-gpio.h"
 #ifdef CONFIG_USB_G_ANDROID
 #include <linux/usb/android.h>
 #include <mach/usbdiag.h>
@@ -161,6 +163,10 @@
 #include <mach/qdsp5v2/audio_dev_ctl.h>
 #include <mach/sdio_al.h>
 #include "smd_private.h"
+
+#include "board-semc_mogami-leds.h"
+#include "board-semc_mogami-touch.h"
+
 #include <mach/semc_rpc_server_handset.h>
 
 #define BQ24185_GPIO_IRQ		(31)
