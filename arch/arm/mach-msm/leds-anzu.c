@@ -46,7 +46,7 @@ static struct as3676_platform_led as3676_leds_mapping[] = {
 
 struct as3676_platform_data as3676_platform_data = {
 	.leds = as3676_leds_mapping,
-	.num_leds = ARRAY_SIZE(as3676_leds_mapping),
+	.num_leds = 5, //ARRAY_SIZE(as3676_leds_mapping),
 	.als_connected = 1,
 	.als_wait = 100,
 	.dls_connected = false,
