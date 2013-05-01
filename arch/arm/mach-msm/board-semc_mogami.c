@@ -183,22 +183,11 @@
 #include "board-msm7x30-regulator.h"
 #include "pm.h"
 
-#define MSM_PMEM_SF_SIZE	0x1700000
+#define MSM_PMEM_SF_SIZE	0x1C00000
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MSM_FB_PRIM_BUF_SIZE   (864 * 480 * 4 * 3) /* 4bpp * 3 Pages */
 #else
 #define MSM_FB_PRIM_BUF_SIZE   (864 * 480 * 4 * 2) /* 4bpp * 2 Pages */
-#endif
-/*
- * Reserve space for double buffered full screen
- * res V4L2 video overlay - i.e. 1280x720x1.5x2
- */
-#define MSM_V4L2_VIDEO_OVERLAY_BUF_SIZE 2764800
-
-#ifdef CONFIG_FB_MSM_HDMI_ADV7520_PANEL
-#define MSM_FB_EXT_BUF_SIZE (1280 * 720 * 2 * 1) /* 2 bpp x 1 page */
-#else
-#define MSM_FB_EXT_BUF_SIZE    0
 #endif
 
 #ifdef CONFIG_FB_MSM_OVERLAY0_WRITEBACK
@@ -208,11 +197,12 @@
 #define MSM_FB_OVERLAY0_WRITEBACK_SIZE  0
 #endif
 
-#define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE + MSM_FB_EXT_BUF_SIZE, 4096)
+#define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE, 4096)
 
-#define MSM_PMEM_ADSP_SIZE      0x242A000
+#define MSM_PMEM_ADSP_SIZE      0x1C00000
 #define PMEM_KERNEL_EBI0_SIZE   0x600000
 #define MSM_PMEM_AUDIO_SIZE     0x200000
+
 #ifdef CONFIG_ION_MSM
 static struct platform_device ion_dev;
 #define MSM_ION_AUDIO_SIZE	(MSM_PMEM_AUDIO_SIZE + PMEM_KERNEL_EBI0_SIZE)
@@ -3381,14 +3371,6 @@ static struct resource msm_fb_resources[] = {
 	}
 };
 
-#ifdef CONFIG_MSM_V4L2_VIDEO_OVERLAY_DEVICE
-static struct resource msm_v4l2_video_overlay_resources[] = {
-	{
-	   .flags = IORESOURCE_DMA,
-	}
-};
-#endif
-
 #ifdef CONFIG_FB_MSM_HDMI_SII9024A_PANEL
 static int msm_fb_detect_panel(const char *name)
 {
@@ -3418,16 +3400,6 @@ static struct platform_device msm_fb_device = {
 	}
 };
 
-#ifdef CONFIG_MSM_V4L2_VIDEO_OVERLAY_DEVICE
-
-static struct platform_device msm_v4l2_video_overlay_device = {
-	.name   = "msm_v4l2_overlay_pd",
-	.id     = 0,
-	.num_resources  = ARRAY_SIZE(msm_v4l2_video_overlay_resources),
-	.resource       = msm_v4l2_video_overlay_resources,
-};
-#endif
-
 static struct platform_device msm_migrate_pages_device = {
 	.name   = "msm_migrate_pages",
 	.id     = -1,
@@ -3440,23 +3412,10 @@ static struct android_pmem_platform_data android_pmem_adsp_pdata = {
 	.memory_type = MEMTYPE_EBI0,
 };
 
-static struct android_pmem_platform_data android_pmem_audio_pdata = {
-       .name = "pmem_audio",
-       .allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
-       .cached = 0,
-	.memory_type = MEMTYPE_EBI0,
-};
-
 static struct platform_device android_pmem_adsp_device = {
        .name = "android_pmem",
        .id = 2,
        .dev = { .platform_data = &android_pmem_adsp_pdata },
-};
-
-static struct platform_device android_pmem_audio_device = {
-       .name = "android_pmem",
-       .id = 4,
-       .dev = { .platform_data = &android_pmem_audio_pdata },
 };
 
 #if defined(CONFIG_CRYPTO_DEV_QCRYPTO) || \
@@ -4384,9 +4343,6 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&android_pmem_device,
 	&msm_fb_device,
-#ifdef CONFIG_MSM_V4L2_VIDEO_OVERLAY_DEVICE
-	&msm_v4l2_video_overlay_device,
-#endif
 	&msm_migrate_pages_device,
 #ifdef CONFIG_MSM_ROTATOR
 	&msm_rotator_device,
@@ -4396,7 +4352,6 @@ static struct platform_device *devices[] __initdata = {
 	&sii_uio_dev,
 #endif /* CONFIG_FB_MSM_HDMI_SII9024A_PANEL */
 	&android_pmem_adsp_device,
-	&android_pmem_audio_device,
 	&msm_device_i2c,
 	&msm_device_i2c_2,
 	&msm_device_uart_dm1,
@@ -5837,14 +5792,6 @@ static int __init pmem_adsp_size_setup(char *p)
 }
 early_param("pmem_adsp_size", pmem_adsp_size_setup);
 
-static unsigned pmem_audio_size = MSM_PMEM_AUDIO_SIZE;
-static int __init pmem_audio_size_setup(char *p)
-{
-	pmem_audio_size = memparse(p, NULL);
-	return 0;
-}
-early_param("pmem_audio_size", pmem_audio_size_setup);
-
 static unsigned pmem_kernel_ebi0_size = PMEM_KERNEL_EBI0_SIZE;
 static int __init pmem_kernel_ebi0_size_setup(char *p)
 {
@@ -5949,7 +5896,6 @@ static void __init size_pmem_devices(void)
 #ifndef CONFIG_MSM_MULTIMEDIA_USE_ION
 
 	android_pmem_adsp_pdata.size = size;
-	android_pmem_audio_pdata.size = pmem_audio_size;
 	android_pmem_pdata.size = pmem_sf_size;
 #endif
 #endif
@@ -5969,7 +5915,6 @@ static void __init reserve_pmem_memory(void)
 #ifdef CONFIG_ANDROID_PMEM
 #ifndef CONFIG_MSM_MULTIMEDIA_USE_ION
 	reserve_memory_for(&android_pmem_adsp_pdata);
-	reserve_memory_for(&android_pmem_audio_pdata);
 	reserve_memory_for(&android_pmem_pdata);
 	msm7x30_reserve_table[MEMTYPE_EBI0].size += pmem_kernel_ebi0_size;
 #endif
