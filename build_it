@@ -19,4 +19,16 @@ mkdir -p ../final_files
 ### copy zImage
 cp arch/arm/boot/zImage ../final_files/.
 
+cp net/compat-drivers/drivers/net/wireless/ti/wl12xx/wl12xx.ko ../final_files/.
+cp net/compat-drivers/drivers/net/wireless/ti/wlcore/wlcore_sdio.ko ../final_files/.
+
+### Stripping modules
+echo "Stripping modules"
+cd ../final_files/
+for i in $(find . | grep .ko | grep './')
+do
+        echo $i
+	#${CUR_TC}arm-eabi-strip --strip-unneeded $i
+	~/arm-linux-androideabi-4.7/bin/arm-linux-androideabi-strip --strip-unneeded $i
+done
 fi
