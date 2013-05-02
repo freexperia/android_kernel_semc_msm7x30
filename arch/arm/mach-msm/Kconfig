@@ -1591,6 +1591,14 @@ config MSM_RPCSERVER_HANDSET
 	  Support for receiving handset events like headset detect,
 	  headset switch and clamshell state.
 
+config SEMC_MMC_SDIO_NO_IRQ
+	bool "Do not expect an sdio irq function to be registered"
+	depends on ARCH_MSM7X30 && MMC_MSM
+	default n
+	help
+	  This enables a hack for avoiding the sdio_irq_thread from being called
+	  when processing sdio requests. Needed for WL12xx wifi driver to be usable 
+
 config MSM_RMT_STORAGE_CLIENT
 	depends on (ARCH_MSM && MSM_ONCRPCROUTER)
 	default n
