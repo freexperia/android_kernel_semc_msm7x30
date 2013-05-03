@@ -673,10 +673,47 @@ config MACH_MSM7X30_FLUID
        help
          Support for the Qualcomm MSM7x30 FLUID eval board.
 
+config MACH_SEMC_SMULTRON
+	depends on ARCH_MSM7X30
+	depends on !MSM_STACKED_MEMORY
+	select SUPPORT_ALIEN_USB_CHARGER
+	default y
+	bool "SonyEricsson Smultron"
+	help
+	  Support for the SonyEricsson Smultron devices.
+	  
+config MACH_SEMC_MANGO
+	depends on ARCH_MSM7X30
+	depends on !MSM_STACKED_MEMORY
+	select SUPPORT_ALIEN_USB_CHARGER
+	default n
+	bool "SonyEricsson Mango"
+	help
+	  Support for the SonyEricsson Mango devices.
+
+config MACH_SEMC_COCONUT
+	depends on ARCH_MSM7X30
+	depends on !MSM_STACKED_MEMORY
+	select SUPPORT_ALIEN_USB_CHARGER
+	default n
+	bool "SonyEricsson Coconut"
+	help
+	  Support for the SonyEricsson Coconut devices.
+
+config MACH_SEMC_HAIDA
+	depends on ARCH_MSM7X30
+	depends on !MSM_STACKED_MEMORY
+	select FB_MSM_HDPI
+	select SUPPORT_ALIEN_USB_CHARGER
+	default y
+	bool "SonyEricsson Haida"
+	help
+	  Support for the SonyEricsson Haida devices.
+
 config MACH_SEMC_URUSHI
 	depends on ARCH_MSM7X30
 	depends on !MSM_STACKED_MEMORY
-	select FB_MSM_HDPI 
+	select FB_MSM_HDPI
 	select SUPPORT_ALIEN_USB_CHARGER
 	default y
 	bool "SonyEricsson Urushi"
@@ -686,13 +723,42 @@ config MACH_SEMC_URUSHI
 config MACH_SEMC_ANZU
 	depends on ARCH_MSM7X30
 	depends on !MSM_STACKED_MEMORY
-	select TI1271
-	select FB_MSM_HDPI 
+	select FB_MSM_HDPI
 	select SUPPORT_ALIEN_USB_CHARGER
 	default y
 	bool "SonyEricsson Anzu"
 	help
 	  Support for the SonyEricsson Anzu devices.
+
+config MACH_SEMC_IYOKAN
+	depends on ARCH_MSM7X30
+	select FB_MSM_HDPI
+	depends on !MSM_STACKED_MEMORY
+	select SUPPORT_ALIEN_USB_CHARGER
+	default y
+	bool "SonyEricsson Iyokan"
+	help
+	  Support for the SonyEricsson Iyokan devices.
+
+config MACH_SEMC_HALLON
+	depends on ARCH_MSM7X30
+	depends on !MSM_STACKED_MEMORY
+	select FB_MSM_HDPI
+	select SUPPORT_ALIEN_USB_CHARGER
+	default y
+	bool "SonyEricsson Hallon"
+	help
+	  Support for the SonyEricsson Hallon devices.
+
+config MACH_SEMC_SATSUMA
+	depends on ARCH_MSM7X30
+	depends on !MSM_STACKED_MEMORY
+	select FB_MSM_HDPI
+	select SUPPORT_ALIEN_USB_CHARGER
+	default y
+	bool "SonyEricsson Satsuma"
+	help
+	  Support for the SonyEricsson Satsuma devices.
 
 config MACH_SAPPHIRE
 	depends on ARCH_MSM7X01A

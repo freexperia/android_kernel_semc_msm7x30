@@ -304,8 +304,14 @@ obj-$(CONFIG_MACH_SAPPHIRE) += board-sapphire-rfkill.o msm_vibrator.o
 
 obj-$(CONFIG_MACH_LGE) += lge/
 
+obj-$(CONFIG_MACH_SEMC_SMULTRON) += board-semc_mogami.o leds-smultron.o vibrator-mogami.o charger-smultron.o board-semc_mogami-wifi.o touch-smultron.o gpio-smultron.o keypad-smultron.o board-semc_mogami-rfkill.o
+obj-$(CONFIG_MACH_SEMC_COCONUT) += board-semc_mogami.o leds-coconut.o vibrator-mogami.o charger-coconut.o board-semc_mogami-wifi.o touch-coconut.o gpio-coconut.o keypad-coconut.o board-semc_mogami-rfkill.o
+obj-$(CONFIG_MACH_SEMC_HAIDA) += board-semc_mogami.o leds-haida.o vibrator-mogami.o charger-haida.o board-semc_mogami-rfkill.o keypad-haida.o gpio-haida.o board-semc_mogami-wifi.o
 obj-$(CONFIG_MACH_SEMC_URUSHI) += board-semc_mogami.o board-semc_mogami-wifi.o board-semc_mogami-rfkill.o semc_urushi.o vibrator-mogami.o
 obj-$(CONFIG_MACH_SEMC_ANZU) += board-semc_mogami.o board-semc_mogami-rfkill.o keypad-anzu.o leds-anzu.o  vibrator-mogami.o gpio-anzu.o charger-anzu.o board-semc_mogami-wifi.o
+obj-$(CONFIG_MACH_SEMC_IYOKAN) += board-semc_mogami.o leds-iyokan.o vibrator-mogami.o charger-iyokan.o board-semc_mogami-wifi.o touch-iyokan.o gpio-iyokan.o keypad-iyokan.o board-semc_mogami-rfkill.o
+obj-$(CONFIG_MACH_SEMC_HALLON) += board-semc_mogami.o leds-hallon.o vibrator-mogami.o charger-hallon.o board-semc_mogami-rfkill.o keypad-hallon.o gpio-hallon.o board-semc_mogami-wifi.o
+obj-$(CONFIG_MACH_SEMC_SATSUMA) += board-semc_mogami.o board-semc_mogami-rfkill.o keypad-satsuma.o leds-satsuma.o gpio-satsuma.o charger-satsuma.o board-semc_mogami-wifi.o touch-satsuma.o vibrator-mogami.o
 
 CFLAGS_msm_vibrator.o += -Idrivers/staging/android
 CFLAGS_board-9615.o += -Idrivers/usb/gadget
