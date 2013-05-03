@@ -60,6 +60,7 @@
 static unsigned char *fbram;
 static unsigned char *fbram_phys;
 static int fbram_size;
+static bool align_buffer = false;
 static boolean bf_supported;
 
 static struct platform_device *pdev_list[MSM_FB_MAX_DEV_LIST];
@@ -978,6 +979,11 @@ int calc_fb_offset(struct msm_fb_data_type *mfd, struct fb_info *fbi, int bpp)
 	struct msm_panel_info *panel_info = &mfd->panel_info;
 	int remainder, yres, offset;
 
+	if (!align_buffer)
+	{
+	 	return fbi->var.xoffset * bpp + fbi->var.yoffset * fbi->fix.line_length;
+	}
+	
 	if (panel_info->mode2_yres != 0) {
 		yres = panel_info->mode2_yres;
 		remainder = (fbi->fix.line_length*yres) & (PAGE_SIZE - 1);
@@ -4353,6 +4359,8 @@ int msm_fb_v4l2_update(void *par,
 #endif
 #endif
 }
+module_param(align_buffer, bool, 0644);
+
 EXPORT_SYMBOL(msm_fb_v4l2_update);
 
 module_init(msm_fb_init);
