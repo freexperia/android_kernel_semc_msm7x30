@@ -677,7 +677,7 @@ config MACH_SEMC_SMULTRON
 	depends on ARCH_MSM7X30
 	depends on !MSM_STACKED_MEMORY
 	select SUPPORT_ALIEN_USB_CHARGER
-	default y
+	default n
 	bool "SonyEricsson Smultron"
 	help
 	  Support for the SonyEricsson Smultron devices.
@@ -705,7 +705,7 @@ config MACH_SEMC_HAIDA
 	depends on !MSM_STACKED_MEMORY
 	select FB_MSM_HDPI
 	select SUPPORT_ALIEN_USB_CHARGER
-	default y
+	default n
 	bool "SonyEricsson Haida"
 	help
 	  Support for the SonyEricsson Haida devices.
@@ -715,7 +715,7 @@ config MACH_SEMC_URUSHI
 	depends on !MSM_STACKED_MEMORY
 	select FB_MSM_HDPI
 	select SUPPORT_ALIEN_USB_CHARGER
-	default y
+	default n
 	bool "SonyEricsson Urushi"
 	help
 	  Support for the SonyEricsson Urushi devices.
@@ -725,7 +725,7 @@ config MACH_SEMC_ANZU
 	depends on !MSM_STACKED_MEMORY
 	select FB_MSM_HDPI
 	select SUPPORT_ALIEN_USB_CHARGER
-	default y
+	default n
 	bool "SonyEricsson Anzu"
 	help
 	  Support for the SonyEricsson Anzu devices.
@@ -735,7 +735,7 @@ config MACH_SEMC_IYOKAN
 	select FB_MSM_HDPI
 	depends on !MSM_STACKED_MEMORY
 	select SUPPORT_ALIEN_USB_CHARGER
-	default y
+	default n
 	bool "SonyEricsson Iyokan"
 	help
 	  Support for the SonyEricsson Iyokan devices.
@@ -745,7 +745,7 @@ config MACH_SEMC_HALLON
 	depends on !MSM_STACKED_MEMORY
 	select FB_MSM_HDPI
 	select SUPPORT_ALIEN_USB_CHARGER
-	default y
+	default n
 	bool "SonyEricsson Hallon"
 	help
 	  Support for the SonyEricsson Hallon devices.
@@ -755,7 +755,7 @@ config MACH_SEMC_SATSUMA
 	depends on !MSM_STACKED_MEMORY
 	select FB_MSM_HDPI
 	select SUPPORT_ALIEN_USB_CHARGER
-	default y
+	default n
 	bool "SonyEricsson Satsuma"
 	help
 	  Support for the SonyEricsson Satsuma devices.
